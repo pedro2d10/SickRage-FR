@@ -210,7 +210,11 @@
 
                 <table style="width:180px; float: right; vertical-align: middle; height: 100%;">
                     <% info_flag = subtitles.code_from_code(show.lang) if show.lang else '' %>
+                    <% audio_flag = subtitles.code_from_code('fr') if show.audio_lang else '' %>
                     <tr><td class="showLegend">Info Language:</td><td><img src="${srRoot}/images/subtitles/flags/${info_flag}.png" width="16" height="11" alt="${show.lang}" title="${show.lang}" onError="this.onerror=null;this.src='${srRoot}/images/flags/unknown.png';"/></td></tr>
+                    % if show.frenchsearch:
+                    <tr><td class="showLegend">Audio Language:</td><td><img src="${srRoot}/images/subtitles/flags/${audio_flag}.png" width="16" height="11" alt="${show.audio_lang}" title="${show.audio_lang}" onError="this.onerror=null;this.src='${srRoot}/images/flags/unknown.png';"/></td></tr>
+                    % endif
                     % if sickbeard.USE_SUBTITLES:
                     <tr><td class="showLegend">Subtitles: </td><td><img src="${srRoot}/images/${("no16.png", "yes16.png")[bool(show.subtitles)]}" alt="${("N", "Y")[bool(show.subtitles)]}" width="16" height="16" /></td></tr>
                     % endif
@@ -246,6 +250,7 @@
         <input class="btn btn-inline" type="button" id="changeStatus" value="Go" />
     </div>
 
+
     <br>
 
     <div class="pull-right clearfix" id="checkboxControls">
@@ -264,8 +269,22 @@
             <button class="btn btn-xs clearAll">Clear All</button>
         </div>
     </div>
-<br>
-<br>
+    <br>
+    <br>
+
+
+    <div class="pull-left" >
+        Change audio of episodes to: <br>
+        <select id="audioselect" class="form-control form-control-inline input-sm">
+            <% audio_method_text = {'fre': "Francais", 'eng': "English"} %>
+            % for curAction in ('fre', 'eng'):
+                    <option value="${curAction}" >${audio_method_text[curAction]}</option>
+            % endfor
+        </select>
+        <input type="hidden" id="showID" value="${show.indexerid}" />
+        <input type="hidden" id="indexer" value="${show.indexer}" />
+        <input class="btn btn-inline" type="button" id="changeAudio" value="Go" />
+    </div>
 <br>
 
 <table id="${("showTable", "animeTable")[bool(show.is_anime)]}" class="displayShowTable display_show" cellspacing="0" border="0" cellpadding="0">
@@ -282,6 +301,9 @@
 
         scene = False
         scene_anime = False
+
+
+
         if not show.air_by_date and not show.is_sports and not show.is_anime and show.is_scene:
             scene = True
         elif not show.air_by_date and not show.is_sports and show.is_anime and show.is_scene:
@@ -327,6 +349,7 @@
                 <th data-sorter="false" class="col-name columnSelector-false">File Name</th>
                 <th data-sorter="false" class="col-ep columnSelector-false">Size</th>
                 <th data-sorter="false" class="col-airdate">Airdate</th>
+                <th data-sorter="false" class="col-audio columnSelector-false">Audio</th>
                 <th data-sorter="false" ${("class=\"col-ep columnSelector-false\"", "class=\"col-ep\"")[bool(sickbeard.DOWNLOAD_URL)]}>Download</th>
                 <th data-sorter="false" ${("class=\"col-ep columnSelector-false\"", "class=\"col-ep\"")[bool(sickbeard.USE_SUBTITLES)]}>Subtitles</th>
                 <th data-sorter="false" class="col-status">Status</th>
@@ -356,6 +379,7 @@
             <th class="col-name">File Name</th>
             <th class="col-ep">Size</th>
             <th class="col-airdate">Airdate</th>
+            <th class="col-audio">Audio</th>
             <th class="col-ep">Download</th>
             <th class="col-ep">Subtitles</th>
             <th class="col-status">Status</th>
@@ -386,6 +410,7 @@
             <th class="col-name">File Name</th>
             <th class="col-ep">Size</th>
             <th class="col-airdate">Airdate</th>
+            <th class="col-audio">Audio</th>
             <th class="col-ep">Download</th>
             <th class="col-ep">Subtitles</th>
             <th class="col-status">Status</th>
@@ -467,6 +492,13 @@
                 % else:
                     Never
                 % endif
+            </td>
+            <td class="col-audio" align="center">
+            % for flag in (epResult["audio_langs"] or '').split(','):
+                % if flag.strip():
+                    <img src="${srRoot}/images/subtitles/flags/${flag}.png" width="16" height="11" alt="${subtitles.name_from_code(flag)}" onError="this.onerror=null;this.src='${srRoot}/images/flags/unknown.png';" />
+                % endif
+            % endfor
             </td>
             <td>
                 % if sickbeard.DOWNLOAD_URL and epResult['location']:

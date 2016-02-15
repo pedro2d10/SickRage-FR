@@ -83,7 +83,7 @@ if os.path.isdir(OLD_TORNADO):
     shutil.rmtree(OLD_TORNADO + '_kill')
 
 import sickbeard
-from sickbeard import db, logger, network_timezones, failed_history, name_cache
+from sickbeard import frenchFinder, db, logger, network_timezones, failed_history, name_cache
 from sickbeard.tv import TVShow
 from sickbeard.webserveInit import SRWebServer
 from sickbeard.event_queue import Events

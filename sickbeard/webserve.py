@@ -715,9 +715,10 @@ class Home(WebRoot):
         status_download = '(' + ','.join([str(x) for x in Quality.DOWNLOADED + Quality.ARCHIVED]) + ')'
 
         sql_statement = 'SELECT showid, '
-
         sql_statement += '(SELECT COUNT(*) FROM tv_episodes WHERE showid=tv_eps.showid AND season > 0 AND episode > 0 AND airdate > 1 AND status IN ' + status_quality + ') AS ep_snatched, '
         sql_statement += '(SELECT COUNT(*) FROM tv_episodes WHERE showid=tv_eps.showid AND season > 0 AND episode > 0 AND airdate > 1 AND status IN ' + status_download + ') AS ep_downloaded, '
+        sql_statement += '(SELECT COUNT(*) FROM tv_episodes WHERE showid=tv_eps.showid AND season > 0 AND episode > 0 AND airdate > 1 AND status IN ' + status_download + ') AS ep_downloaded, '
+        sql_statement += '(SELECT COUNT(*) FROM tv_episodes WHERE showid=tv_eps.showid AND season > 0 AND episode > 0 AND airdate > 1 AND audio_langs=\'fre\' AND status IN ' + status_download + ') AS ep_downloaded_fr, '
         sql_statement += '(SELECT COUNT(*) FROM tv_episodes WHERE showid=tv_eps.showid AND season > 0 AND episode > 0 AND airdate > 1 '
         sql_statement += ' AND ((airdate <= ' + today + ' AND (status = ' + str(SKIPPED) + ' OR status = ' + str(WANTED) + ' OR status = ' + str(FAILED) + ')) '
         sql_statement += ' OR (status IN ' + status_quality + ') OR (status IN ' + status_download + '))) AS ep_total, '
@@ -1285,6 +1286,7 @@ class Home(WebRoot):
                 submenu.append({'title': 'Update show in KODI', 'path': 'home/updateKODI?show=%d' % showObj.indexerid, 'requires': self.haveKODI(), 'icon': 'menu-icon-kodi'})
                 submenu.append({'title': 'Update show in Emby', 'path': 'home/updateEMBY?show=%d' % showObj.indexerid, 'requires': self.haveEMBY(), 'icon': 'menu-icon-emby'})
                 submenu.append({'title': 'Preview Rename', 'path': 'home/testRename?show=%d' % showObj.indexerid, 'icon': 'ui-icon ui-icon-tag'})
+                submenu.append({'title': 'French Search', 'path': 'home/frenchSearch?show=%d' % showObj.indexerid, 'icon': 'ui-icon ui-icon-flag'})
 
                 if sickbeard.USE_SUBTITLES and not sickbeard.showQueueScheduler.action.isBeingSubtitled(
                         showObj) and showObj.subtitles:
@@ -1388,7 +1390,7 @@ class Home(WebRoot):
                  air_by_date=None, sports=None, dvdorder=None, indexerLang=None,
                  subtitles=None, rls_ignore_words=None, rls_require_words=None,
                  anime=None, blacklist=None, whitelist=None, scene=None,
-                 defaultEpStatus=None, quality_preset=None):
+                 defaultEpStatus=None, quality_preset=None, frenchsearch=None, audio_lang=None):
 
         anidb_failed = False
         if show is None:
@@ -1453,6 +1455,11 @@ class Home(WebRoot):
             indexer_lang = indexerLang
         else:
             indexer_lang = showObj.lang
+
+        if frenchsearch == "on":
+            frenchsearch = 1
+        else:
+            frenchsearch = 0
 
         # if we changed the language then kick off an update
         if indexer_lang == showObj.lang:
@@ -1520,6 +1527,8 @@ class Home(WebRoot):
             showObj.subtitles = subtitles
             showObj.air_by_date = air_by_date
             showObj.default_ep_status = int(defaultEpStatus)
+            showObj.frenchsearch = frenchsearch
+            showObj.audio_lang = audio_lang
 
             if not directCall:
                 showObj.lang = indexer_lang
@@ -1671,6 +1680,23 @@ class Home(WebRoot):
 
         return self.redirect("/home/displayShow?show=" + str(showObj.indexerid))
 
+    def frenchSearch(self, show=None, force=0):
+
+        if show is None:
+            return self._genericMessage("Error", "Invalid show ID")
+
+        showObj = Show.find(sickbeard.showList, int(show))
+
+        if showObj is None:
+            return self._genericMessage("Error", "Unable to find the specified show")
+
+        # search and download subtitles
+        sickbeard.showQueueScheduler.action.searchFrench(showObj, bool(force)) #@UndefinedVariable
+
+        time.sleep(cpu_presets[sickbeard.CPU_PRESET])
+
+        return self.redirect("/home/displayShow?show=" + str(showObj.indexerid))
+
     def updateKODI(self, show=None):
         showName = None
         showObj = None
@@ -1719,6 +1745,9 @@ class Home(WebRoot):
             return self.redirect('/home/displayShow?show=' + str(showObj.indexerid))
         else:
             return self.redirect('/home/')
+
+
+
 
     def setStatus(self, show=None, eps=None, status=None, direct=False):
 
@@ -1863,6 +1892,46 @@ class Home(WebRoot):
             return json.dumps({'result': 'success'})
         else:
             return self.redirect("/home/displayShow?show=" + show)
+
+    def setAudio(self, show=None, eps=None, audio_langs=None, direct=False):
+
+        logger.log(u"Dans la fonction SetAudio")
+        if show == None or eps == None or audio_langs == None:
+            errMsg = "You must specify a show and at least one episode"
+            if direct:
+                ui.notifications.error('Error', errMsg)
+                return json.dumps({'result': 'error'})
+            else:
+                return self._genericMessage(self, "Error", errMsg)
+
+        showObj = Show.find(sickbeard.showList, int(show))
+
+        if showObj == None:
+            return self._genericMessage(self, "Error", "Show not in show list")
+        try:
+            show_loc = showObj.location #@UnusedVariable
+        except ShowDirectoryNotFoundException:
+            return self._genericMessage(self,"Error", "Can't rename episodes when the show dir is missing.")
+
+        ep_obj_rename_list = []
+
+        logger.log(u"episode:" + eps)
+
+        for curEp in eps.split('|'):
+
+                logger.log(u"Attempting to set audio on episode "+curEp+" to "+audio_langs, logger.DEBUG)
+
+                epInfo = curEp.split('x')
+
+                epObj = showObj.getEpisode(int(epInfo[0]), int(epInfo[1]))
+
+                epObj.audio_langs = str(audio_langs)
+                epObj.saveToDB(True)
+
+        if direct:
+            return json.dumps({'result': 'success'})
+        else:
+            self.redirect("/home/displayShow?show=" + show)
 
     def testRename(self, show=None):
 

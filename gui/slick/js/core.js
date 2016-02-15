@@ -2162,6 +2162,21 @@ var SICKRAGE = {
                 window.location.href = srRoot + '/home/setStatus?show=' + $('#showID').attr('value') + '&eps=' + epArr.join('|') + '&status=' + $('#statusSelect').val();
             });
 
+            $('#changeAudio').on('click', function(){
+                var srRoot = $('#srRoot').val();
+                var epArr = [];
+
+                $('.epCheck').each(function () {
+                    if (this.checked === true) {
+                        epArr.push($(this).attr('id'));
+                    }
+                });
+
+                if (epArr.length === 0) { return false; }
+
+                window.location.href = srRoot + '/home/setAudio?show=' + $('#showID').attr('value') + '&eps=' + epArr.join('|') + '&audio_langs=' + $('#audioselect').val();
+            });
+
             $('.seasonCheck').on('click', function(){
                 var seasCheck = this;
                 var seasNo = $(seasCheck).attr('id');

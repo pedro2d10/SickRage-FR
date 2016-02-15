@@ -1150,3 +1150,25 @@ class AddMinorVersion(AlterTVShowsFieldTypes):
         self.inc_minor_version()
 
         logger.log('Updated to: %d.%d' % self.connection.version)
+
+class AddAudioLang (AddMinorVersion):
+    def test(self):
+        return self.hasColumn("tv_shows", "audio_lang")
+
+    def execute(self):
+        self.addColumn("tv_shows", "audio_lang", "TEXT", "fr")
+
+class AddShowLangsToEpisode (AddAudioLang):
+    def test(self):
+        return self.hasColumn("tv_episodes", "audio_langs")
+    def execute(self):
+        self.addColumn("tv_episodes", "audio_langs", "TEXT", "")
+
+class AddFrenchSearch (AddShowLangsToEpisode):
+    def test(self):
+        return self.checkDBVersion() >= 42 and self.hasColumn("tv_shows", "frenchsearch")
+
+    def execute(self):
+        if self.hasColumn("tv_shows", "frenchsearch") != True:
+            self.addColumn("tv_shows", "frenchsearch", "NUMERIC", 0)
+        self.inc_minor_version()

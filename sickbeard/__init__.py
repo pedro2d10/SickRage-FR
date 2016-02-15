@@ -48,6 +48,7 @@ from sickbeard import show_queue
 from sickbeard import logger
 from sickbeard import naming
 from sickbeard import dailysearcher
+from sickbeard import frenchFinder
 from sickbeard.indexers import indexer_api
 from sickbeard.indexers.indexer_exceptions import indexer_shownotfound, indexer_showincomplete, indexer_exception, \
     indexer_error, indexer_episodenotfound, indexer_attributenotfound, indexer_seasonnotfound, indexer_userabort
@@ -106,6 +107,7 @@ backlogSearchScheduler = None
 showUpdateScheduler = None
 versionCheckScheduler = None
 showQueueScheduler = None
+frenchFinderScheduler = None
 searchQueueScheduler = None
 properFinderScheduler = None
 autoPostProcesserScheduler = None
@@ -190,6 +192,7 @@ LAUNCH_BROWSER = False
 CACHE_DIR = None
 ACTUAL_CACHE_DIR = None
 ROOT_DIRS = None
+FRENCH_COLUMN = None
 
 TRASH_REMOVE_SHOW = False
 TRASH_ROTATE_LOGS = False
@@ -246,12 +249,14 @@ CHECK_PROPERS_INTERVAL = None
 ALLOW_HIGH_PRIORITY = False
 SAB_FORCED = False
 RANDOMIZE_PROVIDERS = False
+DOWNLOAD_FRENCH = None
 
 AUTOPOSTPROCESSER_FREQUENCY = None
 DAILYSEARCH_FREQUENCY = None
 UPDATE_FREQUENCY = None
 BACKLOG_FREQUENCY = None
 SHOWUPDATE_HOUR = None
+FRENCH_DELAY = None
 
 DEFAULT_AUTOPOSTPROCESSER_FREQUENCY = 10
 DEFAULT_DAILYSEARCH_FREQUENCY = 40
@@ -601,6 +606,7 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
             USE_PLEX_SERVER, PLEX_NOTIFY_ONSNATCH, PLEX_NOTIFY_ONDOWNLOAD, PLEX_NOTIFY_ONSUBTITLEDOWNLOAD, PLEX_UPDATE_LIBRARY, USE_PLEX_CLIENT, PLEX_CLIENT_USERNAME, PLEX_CLIENT_PASSWORD, \
             PLEX_SERVER_HOST, PLEX_SERVER_TOKEN, PLEX_CLIENT_HOST, PLEX_SERVER_USERNAME, PLEX_SERVER_PASSWORD, PLEX_SERVER_HTTPS, MIN_BACKLOG_FREQUENCY, SKIP_REMOVED_FILES, ALLOWED_EXTENSIONS, \
             USE_EMBY, EMBY_HOST, EMBY_APIKEY, \
+            DOWNLOAD_FRENCH, FRENCH_COLUMN, FRENCH_DELAY, frenchFinderScheduler,\
             showUpdateScheduler, __INITIALIZED__, INDEXER_DEFAULT_LANGUAGE, EP_DEFAULT_DELETED_STATUS, LAUNCH_BROWSER, TRASH_REMOVE_SHOW, TRASH_ROTATE_LOGS, SORT_ARTICLE, \
             NEWZNAB_DATA, NZBS, NZBS_UID, NZBS_HASH, INDEXER_DEFAULT, INDEXER_TIMEOUT, USENET_RETENTION, TORRENT_DIR, \
             QUALITY_DEFAULT, FLATTEN_FOLDERS_DEFAULT, SUBTITLES_DEFAULT, STATUS_DEFAULT, STATUS_DEFAULT_AFTER, \
@@ -859,6 +865,8 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
         ANIME_DEFAULT = bool(check_setting_int(CFG, 'General', 'anime_default', 0))
         SCENE_DEFAULT = bool(check_setting_int(CFG, 'General', 'scene_default', 0))
 
+        FRENCH_COLUMN = bool(check_setting_int(CFG, 'General', 'french_column', 1))
+
         PROVIDER_ORDER = check_setting_str(CFG, 'General', 'provider_order', '').split()
 
         NAMING_PATTERN = check_setting_str(CFG, 'General', 'naming_pattern', 'Season %0S/%SN - S%0SE%0E - %EN')
@@ -890,6 +898,9 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
         CHECK_PROPERS_INTERVAL = check_setting_str(CFG, 'General', 'check_propers_interval', '')
         if CHECK_PROPERS_INTERVAL not in ('15m', '45m', '90m', '4h', 'daily'):
             CHECK_PROPERS_INTERVAL = 'daily'
+
+        DOWNLOAD_FRENCH = bool(check_setting_int(CFG, 'General', 'download_french', 0))
+        FRENCH_DELAY = check_setting_int(CFG, 'General', 'french_delay', 120)
 
         RANDOMIZE_PROVIDERS = bool(check_setting_int(CFG, 'General', 'randomize_providers', 0))
 
@@ -1459,6 +1470,11 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
                                                     start_time=run_at,
                                                     run_delay=update_interval)
 
+        frenchFinderScheduler = scheduler.Scheduler(frenchFinder.FrenchFinder(),
+                                                     cycleTime=datetime.timedelta(minutes=2000),
+                                                     threadName="FINDFRENCH",
+                                                     run_delay=update_interval)
+
         # processors
         autoPostProcesserScheduler = scheduler.Scheduler(auto_postprocessor.PostProcessor(),
                                                          cycleTime=datetime.timedelta(
@@ -1481,7 +1497,7 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
 
 
 def start():
-    global started  # pylint: disable=global-statement
+    global frenchFinderScheduler,started  # pylint: disable=global-statement
 
     with INIT_LOCK:
         if __INITIALIZED__:
@@ -1511,7 +1527,8 @@ def start():
             # start the search queue checker
             searchQueueScheduler.enable = True
             searchQueueScheduler.start()
-
+            if DOWNLOAD_FRENCH:
+                frenchFinderScheduler.thread.start()
             # start the proper finder
             if DOWNLOAD_PROPERS:
                 properFinderScheduler.silent = False
@@ -1571,6 +1588,7 @@ def halt():
                 traktCheckerScheduler,
                 properFinderScheduler,
                 subtitlesFinderScheduler,
+                frenchFinderScheduler,
                 events
             ]
 
@@ -1670,6 +1688,9 @@ def save_config():  # pylint: disable=too-many-statements, too-many-branches
     new_config['General']['update_frequency'] = int(UPDATE_FREQUENCY)
     new_config['General']['showupdate_hour'] = int(SHOWUPDATE_HOUR)
     new_config['General']['download_propers'] = int(DOWNLOAD_PROPERS)
+    new_config['General']['french_delay'] = int(FRENCH_DELAY)
+    new_config['General']['download_french'] = int(DOWNLOAD_FRENCH)
+    new_config['General']['french_column'] = int(FRENCH_COLUMN)
     new_config['General']['randomize_providers'] = int(RANDOMIZE_PROVIDERS)
     new_config['General']['check_propers_interval'] = CHECK_PROPERS_INTERVAL
     new_config['General']['allow_high_priority'] = int(ALLOW_HIGH_PRIORITY)

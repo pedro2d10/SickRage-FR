@@ -169,7 +169,6 @@
         </div>
 
         <div class="progressbar hidden-print" style="position:relative;" data-show-id="${curShow.indexerid}" data-progress-percentage="${progressbar_percent}"></div>
-
         <div class="show-title">
             ${curShow.name}
         </div>
@@ -217,7 +216,6 @@
                             <span title="${curShow.network}">${curShow.network}</span>
                         % endif
                     </td>
-
                     <td class="show-table">
                         ${renderQualityPill(curShow.quality, showTitle=True, overrideClass="show-quality")}
                     </td>
@@ -243,6 +241,7 @@
             <th>Network</th>
             <th>Quality</th>
             <th>Downloads</th>
+            <th>French Ep</th>
             <th>Size</th>
             <th>Active</th>
             <th>Status</th>
@@ -252,6 +251,7 @@
     <tfoot class="hidden-print">
         <tr>
             <th rowspan="1" colspan="1" align="center"><a href="${srRoot}/addShows/">Add ${('Show', 'Anime')[curListType == 'Anime']}</a></th>
+            <th>&nbsp;</th>
             <th>&nbsp;</th>
             <th>&nbsp;</th>
             <th>&nbsp;</th>
@@ -299,9 +299,11 @@
     cur_airs_prev = ''
     cur_snatched = 0
     cur_downloaded = 0
+    cur_downloaded_fr = 0
     cur_total = 0
     show_size = 0
     download_stat_tip = ''
+
 
     if curShow.indexerid in show_stat:
         cur_airs_next = show_stat[curShow.indexerid]['ep_airs_next']
@@ -315,6 +317,10 @@
         if not cur_downloaded:
             cur_downloaded = 0
 
+        cur_downloaded_fr = show_stat[curShow.indexerid]['ep_downloaded_fr']
+        if not cur_downloaded_fr:
+            cur_downloaded_fr = 0
+
         cur_total = show_stat[curShow.indexerid]['ep_total']
         if not cur_total:
             cur_total = 0
@@ -324,6 +330,9 @@
     download_stat = str(cur_downloaded)
     download_stat_tip = "Downloaded: " + str(cur_downloaded)
 
+    download_stat_fr = str(cur_downloaded_fr)
+    download_stat_tip_fr = "Downloaded: " + str(cur_downloaded_fr)
+
     if cur_snatched:
         download_stat = download_stat + "+" + str(cur_snatched)
         download_stat_tip = download_stat_tip + "&#013;" + "Snatched: " + str(cur_snatched)
@@ -331,7 +340,11 @@
     download_stat = download_stat + " / " + str(cur_total)
     download_stat_tip = download_stat_tip + "&#013;" + "Total: " + str(cur_total)
 
+    download_stat_fr = download_stat_fr + " / " + str(cur_total)
+    download_stat_tip_fr = download_stat_tip_fr + "&#013;" + "Total: " + str(cur_total)
+
     nom = cur_downloaded
+    nom_fr = cur_downloaded_fr
     if cur_total:
         den = cur_total
     else:
@@ -339,6 +352,8 @@
         download_stat_tip = "Unaired"
 
     progressbar_percent = nom * 100 / den
+    progressbar_percent_fr = nom_fr * 100 / den
+
 %>
     <tr>
     % if cur_airs_next:
@@ -410,6 +425,13 @@
             ## This first span is used for sorting and is never displayed to user
             <span style="display: none;">${download_stat}</span>
             <div class="progressbar hidden-print" style="position:relative;" data-show-id="${curShow.indexerid}" data-progress-percentage="${progressbar_percent}" data-progress-text="${download_stat}" data-progress-tip="${download_stat_tip}"></div>
+            <span class="visible-print-inline">${download_stat}</span>
+        </td>
+
+         <td align="center">
+            ## This first span is used for sorting and is never displayed to user
+            <span style="display: none;">${download_stat_fr}</span>
+            <div class="progressbar hidden-print" style="position:relative;" data-show-id="${curShow.indexerid}" data-progress-percentage="${progressbar_percent_fr}" data-progress-text="${download_stat_fr}" data-progress-tip="${download_stat_tip_fr}"></div>
             <span class="visible-print-inline">${download_stat}</span>
         </td>
 

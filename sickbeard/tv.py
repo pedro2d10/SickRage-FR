@@ -57,10 +57,12 @@ from sickrage.helper.exceptions import MultipleShowObjectsException, NoNFOExcept
 from sickrage.helper.exceptions import ShowNotFoundException
 from sickrage.show.Show import Show
 
+from frenchFinder import FrenchFinder
+
 from sickbeard.common import Quality, Overview, statusStrings
 from sickbeard.common import DOWNLOADED, SNATCHED, SNATCHED_PROPER, ARCHIVED, IGNORED, UNAIRED, WANTED, SKIPPED, UNKNOWN
 from sickbeard.common import NAMING_DUPLICATE, NAMING_EXTEND, NAMING_LIMITED_EXTEND, NAMING_SEPARATED_REPEAT, \
-    NAMING_LIMITED_EXTEND_E_PREFIXED
+    NAMING_LIMITED_EXTEND_E_PREFIXED,SNATCHED_FRENCH
 
 import shutil
 import shutil_custom
@@ -79,7 +81,7 @@ def dirty_setter(attr_name):
 
 
 class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-public-methods
-    def __init__(self, indexer, indexerid, lang=""):
+    def __init__(self, indexer, indexerid, lang="", audio_lang=""):
         self._indexerid = int(indexerid)
         self._indexer = int(indexer)
         self._name = ""
@@ -99,10 +101,12 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
         self._subtitles = int(sickbeard.SUBTITLES_DEFAULT)
         self._dvdorder = 0
         self._lang = lang
+        self._audio_lang = audio_lang
         self._last_update_indexer = 1
         self._sports = 0
         self._anime = 0
         self._scene = 0
+        self._frenchsearch = 0
         self._rls_ignore_words = ""
         self._rls_require_words = ""
         self._default_ep_status = SKIPPED
@@ -138,8 +142,10 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
     paused = property(lambda self: self._paused, dirty_setter("_paused"))
     air_by_date = property(lambda self: self._air_by_date, dirty_setter("_air_by_date"))
     subtitles = property(lambda self: self._subtitles, dirty_setter("_subtitles"))
+    frenchsearch = property(lambda self: self._frenchsearch, dirty_setter("_frenchsearch"))
     dvdorder = property(lambda self: self._dvdorder, dirty_setter("_dvdorder"))
     lang = property(lambda self: self._lang, dirty_setter("_lang"))
+    audio_lang = property(lambda self: self._audio_lang, dirty_setter("_audio_lang"))
     last_update_indexer = property(lambda self: self._last_update_indexer, dirty_setter("_last_update_indexer"))
     sports = property(lambda self: self._sports, dirty_setter("_sports"))
     anime = property(lambda self: self._anime, dirty_setter("_anime"))
@@ -472,6 +478,10 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             lINDEXER_API_PARMS['language'] = self.lang
             logger.log(u"Using language: " + str(self.lang), logger.DEBUG)
 
+        if self.audio_lang:
+            logger.log(u"Using Audio language: " + str(self.audio_lang), logger.DEBUG)
+
+
         if self.dvdorder != 0:
             lINDEXER_API_PARMS['dvdorder'] = True
 
@@ -703,6 +713,23 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
                     with curEp.lock:
                         curEp.status = Quality.compositeStatus(DOWNLOADED, newQuality)
 
+                if oldStatus == SNATCHED and oldQuality <= newQuality:
+                    logger.log(u"STATUS: this ep used to be snatched with quality "+Quality.qualityStrings[oldQuality]+" but a file exists with quality "+Quality.qualityStrings[newQuality]+" so I'm setting the status to DOWNLOADED", logger.DEBUG)
+                    newStatus = DOWNLOADED
+
+                # if it was snatched proper and we found a higher quality one then allow the status change
+                elif (oldStatus == SNATCHED_PROPER or oldStatus == SNATCHED_FRENCH) and oldQuality < newQuality:
+                    logger.log(u"STATUS: this ep used to be snatched proper with quality "+Quality.qualityStrings[oldQuality]+" but a file exists with quality "+Quality.qualityStrings[newQuality]+" so I'm setting the status to DOWNLOADED", logger.DEBUG)
+                    newStatus = DOWNLOADED
+
+                elif oldStatus not in (SNATCHED, SNATCHED_PROPER, SNATCHED_FRENCH):
+                    newStatus = DOWNLOADED
+
+                if newStatus != None:
+                    with curEp.lock:
+                        logger.log(u"STATUS: we have an associated file, so setting the status from "+str(curEp.status)+" to DOWNLOADED/" + str(Quality.statusFromName(file)), logger.DEBUG)
+                        curEp.status = Quality.compositeStatus(newStatus, newQuality)
+
             # check for status/quality changes as long as it's a new file
             elif not same_file and sickbeard.helpers.isMediaFile(filepath) and curEp.status not in Quality.DOWNLOADED + Quality.ARCHIVED + [IGNORED]:
                 oldStatus, oldQuality = Quality.splitCompositeStatus(curEp.status)
@@ -787,10 +814,12 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             self.sports = int(sql_results[0]["sports"] or 0)
             self.scene = int(sql_results[0]["scene"] or 0)
             self.subtitles = int(sql_results[0]["subtitles"] or 0)
+            self.frenchsearch = int(sql_results[0]["frenchsearch"] or 0)
             self.dvdorder = int(sql_results[0]["dvdorder"] or 0)
             self.quality = int(sql_results[0]["quality"] or UNKNOWN)
             self.flatten_folders = int(sql_results[0]["flatten_folders"] or 0)
             self.paused = int(sql_results[0]["paused"] or 0)
+            self.frenchsearch = int(sql_results[0]["frenchsearch"] or 0)
 
             try:
                 self.location = sql_results[0]["location"]
@@ -799,6 +828,9 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
 
             if not self.lang:
                 self.lang = sql_results[0]["lang"]
+
+            if not self.audio_lang:
+                self.audio_lang= "fr"
 
             self.last_update_indexer = sql_results[0]["last_update_indexer"]
 
@@ -1135,6 +1167,11 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             logger.log(u"%s: Error occurred when downloading subtitles for %s" % (self.indexerid, self.name), logger.DEBUG)
             logger.log(traceback.format_exc(), logger.ERROR)
 
+    def searchFrench(self, show):
+        logger.log("Sending french episodes search")
+        FrenchFinder('force',show)
+        return True
+
     def saveToDB(self, forceSave=False):
 
         if not self.dirty and not forceSave:
@@ -1159,11 +1196,13 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
                         "air_by_date": self.air_by_date,
                         "anime": self.anime,
                         "scene": self.scene,
+                        "frenchsearch":self.frenchsearch,
                         "sports": self.sports,
                         "subtitles": self.subtitles,
                         "dvdorder": self.dvdorder,
                         "startyear": self.startyear,
                         "lang": self.lang,
+                        "audio_lang": self.audio_lang,
                         "imdb_id": self.imdbid,
                         "last_update_indexer": self.last_update_indexer,
                         "rls_ignore_words": self.rls_ignore_words,
@@ -1193,6 +1232,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
         if self.airs:
             toReturn += "airs: " + self.airs + "\n"
         toReturn += "status: " + self.status + "\n"
+        toReturn += "languages: " + str(self.audio_langs) + "\n"
         toReturn += "startyear: " + str(self.startyear) + "\n"
         if self.genre:
             toReturn += "genre: " + self.genre + "\n"
@@ -1300,6 +1340,8 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             return Overview.WANTED
         elif ep_status in Quality.SNATCHED:
             return Overview.SNATCHED
+        elif ep_status in Quality.SNATCHED_FRENCH:
+            return Overview.SNATCHED_FRENCH
         elif ep_status in Quality.SNATCHED_PROPER:
             return Overview.SNATCHED_PROPER
         elif ep_status in Quality.SNATCHED_BEST:
@@ -1975,7 +2017,8 @@ class TVEpisode(object):  # pylint: disable=too-many-instance-attributes, too-ma
                         "is_proper": self.is_proper,
                         "absolute_number": self.absolute_number,
                         "version": self.version,
-                        "release_group": self.release_group}
+                        "release_group": self.release_group,
+                        "audio_langs": self.audio_langs}
 
         controlValueDict = {"showid": self.show.indexerid,
                             "season": self.season,

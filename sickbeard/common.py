@@ -95,6 +95,8 @@ SNATCHED_PROPER = 9  # qualified with quality
 SUBTITLED = 10  # qualified with quality
 FAILED = 11  # episode downloaded or snatched we don't want
 SNATCHED_BEST = 12  # episode re-downloaded using best quality
+SNATCHED_FRENCH = 13 # episode re-download in french
+
 
 NAMING_REPEAT = 1
 NAMING_EXTEND = 2
@@ -645,6 +647,7 @@ class Quality(object):
     FAILED = None
     SNATCHED_BEST = None
     ARCHIVED = None
+    SNATCHED_FRENCH = None
 
 Quality.DOWNLOADED = [Quality.compositeStatus(DOWNLOADED, x) for x in Quality.qualityStrings]
 Quality.SNATCHED = [Quality.compositeStatus(SNATCHED, x) for x in Quality.qualityStrings]
@@ -652,6 +655,7 @@ Quality.SNATCHED_PROPER = [Quality.compositeStatus(SNATCHED_PROPER, x) for x in 
 Quality.FAILED = [Quality.compositeStatus(FAILED, x) for x in Quality.qualityStrings]
 Quality.SNATCHED_BEST = [Quality.compositeStatus(SNATCHED_BEST, x) for x in Quality.qualityStrings]
 Quality.ARCHIVED = [Quality.compositeStatus(ARCHIVED, x) for x in Quality.qualityStrings]
+Quality.SNATCHED_FRENCH = [Quality.compositeStatus(SNATCHED_FRENCH, x) for x in Quality.qualityStrings.keys()]
 
 HD720p = Quality.combineQualities([Quality.HDTV, Quality.HDWEBDL, Quality.HDBLURAY], [])
 HD1080p = Quality.combineQualities([Quality.FULLHDTV, Quality.FULLHDWEBDL, Quality.FULLHDBLURAY], [])
@@ -727,8 +731,11 @@ statusStrings = StatusStrings({
     IGNORED: "Ignored",
     SUBTITLED: "Subtitled",
     FAILED: "Failed",
-    SNATCHED_BEST: "Snatched (Best)"
+    SNATCHED_BEST: "Snatched (Best)",
+    SNATCHED_FRENCH: "Snatched (French)"
 })
+
+
 
 
 class Overview(object):  # pylint: disable=too-few-public-methods
@@ -738,7 +745,8 @@ class Overview(object):  # pylint: disable=too-few-public-methods
     GOOD = DOWNLOADED  # 4
     SKIPPED = SKIPPED  # 5
     SNATCHED_PROPER = SNATCHED_PROPER  # 9
-    SNATCHED_BEST = SNATCHED_BEST  # 12
+    SNATCHED_BEST = SNATCHED_BEST  # 1
+    SNATCHED_FRENCH = SNATCHED_FRENCH # 13
 
     # Should suffice!
     QUAL = 50
@@ -753,8 +761,14 @@ class Overview(object):  # pylint: disable=too-few-public-methods
         # we can give these a different class later, otherwise
         # breaks checkboxes in displayShow for showing different statuses
         SNATCHED_BEST: "snatched",
-        SNATCHED_PROPER: "snatched"
+        SNATCHED_PROPER: "snatched",
+        SNATCHED_FRENCH: "snatched"
     })
+
+showLanguages = {'en':'english',
+                 'fr':'french',
+				 '':'unknown'
+                 }
 
 countryList = {
     'Australia': 'AU',

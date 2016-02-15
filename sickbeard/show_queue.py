@@ -145,6 +145,14 @@ class ShowQueue(generic_queue.GenericQueue):
 
         return queueItemObj
 
+    def searchFrench(self, show, force=False):
+
+        queueItemObj = QueueItemsearchFrench(show)
+
+        self.add_item(queueItemObj)
+
+        return queueItemObj
+
     def addShow(self, indexer, indexer_id, showDir, default_status=None, quality=None, flatten_folders=None,
                 lang=None, subtitles=None, anime=None, scene=None, paused=None, blacklist=None, whitelist=None,
                 default_status_after=None, root_dir=None):
@@ -192,6 +200,7 @@ class ShowQueueActions(object):
     RENAME = 5
     SUBTITLE = 6
     REMOVE = 7
+    FRENCH_SEARCH = 8
 
     names = {
         REFRESH: 'Refresh',
@@ -200,7 +209,8 @@ class ShowQueueActions(object):
         FORCEUPDATE: 'Force Update',
         RENAME: 'Rename',
         SUBTITLE: 'Subtitle',
-        REMOVE: 'Remove Show'
+        REMOVE: 'Remove Show',
+        FRENCH_SEARCH: 'French Search'
     }
 
 
@@ -386,6 +396,7 @@ class QueueItemAdd(ShowQueueItem):
             self.show.anime = self.anime if self.anime is not None else sickbeard.ANIME_DEFAULT
             self.show.scene = self.scene if self.scene is not None else sickbeard.SCENE_DEFAULT
             self.show.paused = self.paused if self.paused is not None else False
+            self.show.frenchsearch = 0
 
             # set up default new/missing episode status
             logger.log(u"Setting all episodes to the specified default status: " + str(self.show.default_ep_status))
@@ -592,6 +603,19 @@ class QueueItemSubtitle(ShowQueueItem):
         self.show.download_subtitles()
         self.finish()
 
+class QueueItemsearchFrench(ShowQueueItem):
+    def __init__(self, show=None):
+        ShowQueueItem.__init__(self, ShowQueueActions.FRENCH_SEARCH, show)
+
+    def run(self):
+
+        ShowQueueItem.run(self)
+
+        logger.log(u"Searching french episodes for "+self.show.name)
+
+        self.show.searchFrench(self.show.indexerid)
+
+        self.finish()
 
 class QueueItemUpdate(ShowQueueItem):
     def __init__(self, show=None):

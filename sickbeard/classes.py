@@ -51,6 +51,7 @@ class AuthURLOpener(SickBeardURLopener):
         # remember if we've tried the username/password before
         self.numTries = 0
 
+
         # call the base class
         urllib.FancyURLopener.__init__(self)
 
@@ -115,6 +116,9 @@ class SearchResult(object):
 
         # hash
         self.hash = None
+
+        # audio languages
+        self.audio_langs = ""
 
         # content
         self.content = None
