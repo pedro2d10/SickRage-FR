@@ -95,7 +95,7 @@ SNATCHED_PROPER = 9  # qualified with quality
 SUBTITLED = 10  # qualified with quality
 FAILED = 11  # episode downloaded or snatched we don't want
 SNATCHED_BEST = 12  # episode re-downloaded using best quality
-SNATCHED_FRENCH = 13 # episode re-download in french
+SNATCHED_FRENCH = 40 # episode re-download in french
 
 
 NAMING_REPEAT = 1

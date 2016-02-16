@@ -606,7 +606,7 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
             USE_PLEX_SERVER, PLEX_NOTIFY_ONSNATCH, PLEX_NOTIFY_ONDOWNLOAD, PLEX_NOTIFY_ONSUBTITLEDOWNLOAD, PLEX_UPDATE_LIBRARY, USE_PLEX_CLIENT, PLEX_CLIENT_USERNAME, PLEX_CLIENT_PASSWORD, \
             PLEX_SERVER_HOST, PLEX_SERVER_TOKEN, PLEX_CLIENT_HOST, PLEX_SERVER_USERNAME, PLEX_SERVER_PASSWORD, PLEX_SERVER_HTTPS, MIN_BACKLOG_FREQUENCY, SKIP_REMOVED_FILES, ALLOWED_EXTENSIONS, \
             USE_EMBY, EMBY_HOST, EMBY_APIKEY, \
-            DOWNLOAD_FRENCH, FRENCH_COLUMN, FRENCH_DELAY, frenchFinderScheduler,\
+            DOWNLOAD_FRENCH, FRENCH_COLUMN, FRENCH_DELAY, \
             showUpdateScheduler, __INITIALIZED__, INDEXER_DEFAULT_LANGUAGE, EP_DEFAULT_DELETED_STATUS, LAUNCH_BROWSER, TRASH_REMOVE_SHOW, TRASH_ROTATE_LOGS, SORT_ARTICLE, \
             NEWZNAB_DATA, NZBS, NZBS_UID, NZBS_HASH, INDEXER_DEFAULT, INDEXER_TIMEOUT, USENET_RETENTION, TORRENT_DIR, \
             QUALITY_DEFAULT, FLATTEN_FOLDERS_DEFAULT, SUBTITLES_DEFAULT, STATUS_DEFAULT, STATUS_DEFAULT_AFTER, \
@@ -639,7 +639,7 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
             USE_FAILED_DOWNLOADS, DELETE_FAILED, ANON_REDIRECT, LOCALHOST_IP, DEBUG, DBDEBUG, DEFAULT_PAGE, PROXY_SETTING, PROXY_INDEXERS, \
             AUTOPOSTPROCESSER_FREQUENCY, SHOWUPDATE_HOUR, \
             ANIME_DEFAULT, NAMING_ANIME, ANIMESUPPORT, USE_ANIDB, ANIDB_USERNAME, ANIDB_PASSWORD, ANIDB_USE_MYLIST, \
-            ANIME_SPLIT_HOME, SCENE_DEFAULT, DOWNLOAD_URL, BACKLOG_DAYS, GIT_USERNAME, GIT_PASSWORD, \
+            ANIME_SPLIT_HOME, SCENE_DEFAULT, DOWNLOAD_URL, BACKLOG_DAYS, GIT_USERNAME, GIT_PASSWORD, frenchFinderScheduler,\
             DEVELOPER, gh, DISPLAY_ALL_SEASONS, SSL_VERIFY, NEWS_LAST_READ, NEWS_LATEST, SOCKET_TIMEOUT
 
         if __INITIALIZED__:
@@ -1470,11 +1470,6 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
                                                     start_time=run_at,
                                                     run_delay=update_interval)
 
-        frenchFinderScheduler = scheduler.Scheduler(frenchFinder.FrenchFinder(),
-                                                     cycleTime=datetime.timedelta(minutes=2000),
-                                                     threadName="FINDFRENCH",
-                                                     run_delay=update_interval)
-
         # processors
         autoPostProcesserScheduler = scheduler.Scheduler(auto_postprocessor.PostProcessor(),
                                                          cycleTime=datetime.timedelta(
@@ -1492,12 +1487,16 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
                                                        threadName="FINDSUBTITLES",
                                                        silent=not USE_SUBTITLES)
 
+        #frenchFinderScheduler = scheduler.Scheduler(frenchFinder.FrenchFinder(),
+        #                                            cycleTime=datetime.timedelta(hours=UPDATE_FREQUENCY),
+        #                                            threadName="FINDFRENCH",)
+
         __INITIALIZED__ = True
         return True
 
 
 def start():
-    global frenchFinderScheduler,started  # pylint: disable=global-statement
+    global started #frenchFinderScheduler,started  # pylint: disable=global-statement
 
     with INIT_LOCK:
         if __INITIALIZED__:
@@ -1527,8 +1526,7 @@ def start():
             # start the search queue checker
             searchQueueScheduler.enable = True
             searchQueueScheduler.start()
-            if DOWNLOAD_FRENCH:
-                frenchFinderScheduler.thread.start()
+
             # start the proper finder
             if DOWNLOAD_PROPERS:
                 properFinderScheduler.silent = False
@@ -1564,6 +1562,17 @@ def start():
                 traktCheckerScheduler.enable = False
                 traktCheckerScheduler.silent = True
             traktCheckerScheduler.start()
+
+            if DOWNLOAD_FRENCH:
+                frenchFinderScheduler.silent = False
+                frenchFinderScheduler.enable = True
+            else:
+                frenchFinderScheduler.enable = False
+                frenchFinderScheduler.silent = True
+            frenchFinderScheduler.start()
+
+            #if DOWNLOAD_FRENCH:
+            #    frenchFinderScheduler.thread.start()
 
             started = True
 
