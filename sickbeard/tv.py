@@ -418,7 +418,11 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             curEpisode = None
 
             logger.log(str(self.indexerid) + u": Creating episode from " + mediaFile, logger.DEBUG)
+            logger.log(str(self.indexerid) + u": Creating episode from " + mediaFile)
             try:
+                logger.log(os.path.join)
+                logger.log(self._location)
+                logger.log(mediaFile)
                 curEpisode = self.makeEpFromFile(ek(os.path.join, self._location, mediaFile))
             except (ShowNotFoundException, EpisodeNotFoundException) as e:
                 logger.log(u"Episode " + mediaFile + " returned an exception: " + ex(e), logger.ERROR)
@@ -432,6 +436,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             # see if we should save the release name in the db
             ep_file_name = ek(os.path.basename, curEpisode.location)
             ep_file_name = ek(os.path.splitext, ep_file_name)[0]
+            logger.log(ep_file_name)
 
             try:
                 parse_result = NameParser(False, showObj=self, tryIndexers=True).parse(ep_file_name)
@@ -658,6 +663,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
         season = parse_result.season_number if parse_result.season_number is not None else 1
         rootEp = None
 
+
         sql_l = []
         for current_ep in episodes:
             logger.log(u"{}: {} parsed to {} {}".format
@@ -690,6 +696,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
                     curEp.location = filepath
                     # if the sizes are the same then it's probably the same file
                     same_file = old_size and curEp.file_size == old_size
+
                     curEp.checkForMetaFiles()
 
             if rootEp is None:
@@ -706,13 +713,13 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
 
             # if they replace a file on me I'll make some attempt at re-checking the quality unless I know it's the same file
             if checkQualityAgain and not same_file:
+                oldStatus, oldQuality = Quality.splitCompositeStatus(curEp.status)
                 newQuality = Quality.nameQuality(filepath, self.is_anime)
                 logger.log(u"{}: Since this file has been renamed, I checked {} and found quality {}".format
                            (self.indexerid, filepath, Quality.qualityStrings[newQuality]), logger.DEBUG)
                 if newQuality != Quality.UNKNOWN:
                     with curEp.lock:
                         curEp.status = Quality.compositeStatus(DOWNLOADED, newQuality)
-
                 if oldStatus == SNATCHED and oldQuality <= newQuality:
                     logger.log(u"STATUS: this ep used to be snatched with quality "+Quality.qualityStrings[oldQuality]+" but a file exists with quality "+Quality.qualityStrings[newQuality]+" so I'm setting the status to DOWNLOADED", logger.DEBUG)
                     newStatus = DOWNLOADED
@@ -727,7 +734,8 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
 
                 if newStatus != None:
                     with curEp.lock:
-                        logger.log(u"STATUS: we have an associated file, so setting the status from "+str(curEp.status)+" to DOWNLOADED/" + str(Quality.statusFromName(file)), logger.DEBUG)
+                        #logger.log(u"STATUS: we have an associated file, so setting the status from "+str(curEp.status)+" to DOWNLOADED/" + str(Quality.statusFromName(file)), logger.DEBUG)
+                        logger.log(u"STATUS: we have an associated file, so setting the status from "+str(curEp.status)+" to DOWNLOADED/" + Quality.qualityStrings[newQuality], logger.DEBUG)
                         curEp.status = Quality.compositeStatus(newStatus, newQuality)
 
             # check for status/quality changes as long as it's a new file

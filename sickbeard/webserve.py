@@ -5348,6 +5348,7 @@ class ErrorLogs(WebRoot):
             'SEARCHQUEUE-RETRY': u'Search Queue (Retry/Failed)',
             'SEARCHQUEUE-RSS': u'Search Queue (RSS)',
             'FINDPROPERS': u'Find Propers',
+            'FINDFRENCH': u'Find French',
             'POSTPROCESSER': u'Postprocesser',
             'FINDSUBTITLES': u'Find Subtitles',
             'TRAKTCHECKER': u'Trakt Checker',
