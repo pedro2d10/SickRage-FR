@@ -55,6 +55,9 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
 
         self.subcategories = [433, 637, 455, 639]
 
+        self.term_fr = [541, 542]
+        self.term_en = 540
+
         self.minseed = 0
         self.minleech = 0
         self.confirmed = False
@@ -83,10 +86,15 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
             logger.log(u"Token not found in authentication response", logger.WARNING)
             return False
 
-    def search(self, search_params, age=0, ep_obj=None):  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
+    def search(self, search_params, age=0, ep_obj=None, french=None):  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
         results = []
         if not self.login():
             return results
+
+        if (french != None):
+            self.urls['search'] = self.urls['search'] + '&term[17][]=721'
+        else:
+            self.urls['search'] = self.urls['search'] + '&term[17][]=541&term[17][]=542'
 
         for mode in search_params:
             items = []

@@ -18,6 +18,7 @@
 
 import datetime
 import re
+import threading
 
 import sickbeard
 from sickbeard import db
@@ -27,6 +28,7 @@ from sickbeard import search
 from sickbeard.common import SNATCHED_FRENCH
 from sickbeard.common import showLanguages
 from sickrage.show.Show import Show
+from sickrage.providers.GenericProvider import GenericProvider
 
 resultFilters = ["sub(pack|s|bed)", "nlsub(bed|s)?", "swesub(bed)?",
                  "(dir|sample|nfo)fix", "sample", "(dvd)?extras"]
@@ -34,14 +36,19 @@ resultFilters = ["sub(pack|s|bed)", "nlsub(bed|s)?", "swesub(bed)?",
 
 class FrenchFinder():
 
-    def __init__(self, force=None, show=None):
-
+    #def __init__(self, force=None, show=None):
+    def __init__(self):
+        self.lock = threading.Lock()
         #TODOif not sickbeard.DOWNLOAD_FRENCH:
         #    return
+
+
+
+    def run(self, force=None, show=None):
         if sickbeard.showList==None:
             return
         logger.log(u"Beginning the search for french episodes older than "+ str(sickbeard.FRENCH_DELAY) +" days")
-
+        #show = self
         frenchlist=[]
         #get list of english episodes that we want to search in french
         myDB = db.DBConnection()
@@ -83,7 +90,7 @@ class FrenchFinder():
         for frepisode in frenchlist:
             rest=rest-1
             if frepisode.show.indexerid in delay:
-                logger.log(u"Previous episode for show "+str(frepisode.Show.indexerid)+" not found in french so skipping this search", logger.DEBUG)
+                logger.log(u"Previous episode for show "+str(frepisode.show.name)+" not found in french so skipping this search", logger.DEBUG)
                 continue
             result=[]
             for curProvider in providers.sortedProviderList():
@@ -93,7 +100,8 @@ class FrenchFinder():
 
                 logger.log(u"Searching for french episode on "+curProvider.name +" for " +frepisode.show.name +" season "+str(frepisode.season)+" episode "+str(frepisode.episode))
                 try:
-                    curfrench = curProvider.findFrench(frepisode, manualSearch=True)
+                    curfrench =  GenericProvider.findFrench(frepisode, True)
+                    #curProvider.findFrench(frepisode, manualSearch=True)
                 except:
                     logger.log(u"Exception", logger.DEBUG)
                     pass
@@ -135,4 +143,3 @@ class FrenchFinder():
                 delay.append(frepisode.show.indexerid)
                 logger.log(u"No french episode found for " +frepisode.show.name +" season "+str(frepisode.season)+" episode "+str(frepisode.episode))
             logger.log(str(rest) + u" episodes left")
-

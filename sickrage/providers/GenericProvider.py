@@ -327,6 +327,70 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
 
         return results
 
+    def findFrench(self, episode=None, manualSearch=False):
+        results = []
+        self._checkAuth()
+
+        logger.log(u"Searching "+self.name+" for " + episode.prettyName())
+
+        itemList = []
+
+        for cur_search_string in self._get_episode_search_strings(episode,'french'):
+            itemList += self.search(cur_search_string, ep_obj=episode, french='french')\
+                #(cur_search_string, show=episode.show, french='french')
+
+        for item in itemList:
+
+            (title, url) = self._get_title_and_url(item)
+
+            # parse the file name
+            try:
+                myParser = NameParser()
+                parse_result = myParser.parse(helpers.sanitizeFileName(title))
+            except InvalidNameException:
+                logger.log(u"Unable to parse the filename "+title+" into a valid episode", logger.WARNING)
+                continue
+
+            language = self._get_language(title,item)
+
+            if episode.show.air_by_date:
+                if parse_result.air_date != episode.airdate:
+                    logger.log("Episode "+title+" didn't air on "+str(episode.airdate)+", skipping it", logger.DEBUG)
+                    continue
+            elif parse_result.season_number != episode.season or episode.episode not in parse_result.episode_numbers:
+                logger.log("Episode "+title+" isn't "+str(episode.season)+"x"+str(episode.episode)+", skipping it", logger.DEBUG)
+                continue
+
+            quality = self.getQuality(item)
+
+            if not episode.show.wantEpisode(episode.season, episode.episode, quality, manualSearch):
+                logger.log(u"Ignoring result "+title+" because we don't want an episode that is "+Quality.qualityStrings[quality], logger.DEBUG)
+                continue
+
+            if not language == 'fr':
+                logger.log(u"Ignoring result "+title+" because the language: " + showLanguages[language] + " does not match the desired language: French")
+                continue
+
+            logger.log(u"Found result " + title + " at " + url, logger.DEBUG)
+
+            result = self.getResult([episode])
+            result.item = item
+            if hasattr(item , 'getNZB'):
+                result.extraInfo = [item.getNZB() ]
+            elif hasattr(item , 'extraInfo'):
+                result.extraInfo = item.extraInfo
+            result.url = url
+            result.name = title
+            result.quality = quality
+            if hasattr(item , 'audio_langs'):
+                result.audio_lang=''.join(item.audio_langs)
+
+            else:
+                result.audio_lang=language
+            results.append(result)
+
+        return results
+
     def get_id(self):
         return GenericProvider.make_id(self.name)
 
@@ -374,7 +438,7 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
     def login(self):  # pylint: disable=no-self-use
         return True
 
-    def search(self, search_params, age=0, ep_obj=None):  # pylint: disable=unused-argument,no-self-use
+    def search(self, search_params, age=0, ep_obj=None, french=None):  # pylint: disable=unused-argument,no-self-use
         return []
 
     def _get_result(self, episodes):  # pylint: disable=no-self-use

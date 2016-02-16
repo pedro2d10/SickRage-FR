@@ -838,7 +838,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
                 self.lang = sql_results[0]["lang"]
 
             if not self.audio_lang:
-                self.audio_lang= "fr"
+                self.audio_lang= sql_results[0]["audio_lang"]
 
             self.last_update_indexer = sql_results[0]["last_update_indexer"]
 
@@ -1177,7 +1177,8 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
 
     def searchFrench(self, show):
         logger.log("Sending french episodes search")
-        FrenchFinder('force',show)
+        temp = FrenchFinder()
+        temp.run(force='force', show=show)
         return True
 
     def saveToDB(self, forceSave=False):
