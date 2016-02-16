@@ -1487,9 +1487,9 @@ def initialize(consoleLogging=True):  # pylint: disable=too-many-locals, too-man
                                                        threadName="FINDSUBTITLES",
                                                        silent=not USE_SUBTITLES)
 
-        #frenchFinderScheduler = scheduler.Scheduler(frenchFinder.FrenchFinder(),
-        #                                            cycleTime=datetime.timedelta(hours=UPDATE_FREQUENCY),
-        #                                            threadName="FINDFRENCH",)
+        frenchFinderScheduler = scheduler.Scheduler(frenchFinder.FrenchFinder(),
+                                                    cycleTime=datetime.timedelta(hours=UPDATE_FREQUENCY),
+                                                    threadName="FINDFRENCH",)
 
         __INITIALIZED__ = True
         return True
