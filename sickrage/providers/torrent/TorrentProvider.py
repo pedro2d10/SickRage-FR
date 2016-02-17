@@ -122,6 +122,16 @@ class TorrentProvider(GenericProvider):
 
         return title, download_url
 
+    def _get_audio_langs(self, item):
+        if isinstance(item, (dict, FeedParserDict)):
+            audio_langs = item.get('audio_langs', '')
+        elif isinstance(item, (list, tuple)) and len(item) > 1:
+            audio_langs = item[4]
+        else:
+            audio_langs = ''
+
+        return audio_langs
+
     def _verify_download(self, file_name=None):
         try:
             parser = createParser(file_name)

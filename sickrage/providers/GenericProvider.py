@@ -328,16 +328,32 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
         return results
 
     def findFrench(self, episode=None, manualSearch=False):
+        logger.log("Coucou")
         results = []
-        self._checkAuth()
+        self._check_auth()
 
         logger.log(u"Searching "+self.name+" for " + episode.prettyName())
 
         itemList = []
+        search_strings = self._get_episode_search_strings(episode)
+        first = search_strings and isinstance(search_strings[0], dict) and 'rid' in search_strings[0]
 
-        for cur_search_string in self._get_episode_search_strings(episode,'french'):
-            itemList += self.search(cur_search_string, ep_obj=episode, french='french')\
+        logger.log("First : " +str (first))
+
+        if first:
+                logger.log(u'First search_string has rid', logger.DEBUG)
+
+        for cur_search_string in search_strings:
+            logger.log(cur_search_string)
+            itemList += self.search(cur_search_string, ep_obj=episode, french='french')
                 #(cur_search_string, show=episode.show, french='french')
+
+
+        if itemList:
+            logger.log("itemlist pleine!")
+        else:
+            logger.log("itemlist vide!")
+        logger.log(itemList)
 
         for item in itemList:
 
@@ -346,12 +362,15 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
             # parse the file name
             try:
                 myParser = NameParser()
-                parse_result = myParser.parse(helpers.sanitizeFileName(title))
-            except InvalidNameException:
+                parse_result = NameParser(parse_method=('normal')).parse(title)
+            except: # InvalidNameException:
                 logger.log(u"Unable to parse the filename "+title+" into a valid episode", logger.WARNING)
                 continue
 
-            language = self._get_language(title,item)
+            #language = self._get_language(title, item)
+             #quality = self.get_quality(item)
+            language = parse_result.audio_langs
+            logger.log (language)
 
             if episode.show.air_by_date:
                 if parse_result.air_date != episode.airdate:
@@ -361,13 +380,13 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
                 logger.log("Episode "+title+" isn't "+str(episode.season)+"x"+str(episode.episode)+", skipping it", logger.DEBUG)
                 continue
 
-            quality = self.getQuality(item)
+            quality = self.get_quality(item)
 
             if not episode.show.wantEpisode(episode.season, episode.episode, quality, manualSearch):
                 logger.log(u"Ignoring result "+title+" because we don't want an episode that is "+Quality.qualityStrings[quality], logger.DEBUG)
                 continue
 
-            if not language == 'fr':
+            if not language == 'fre':
                 logger.log(u"Ignoring result "+title+" because the language: " + showLanguages[language] + " does not match the desired language: French")
                 continue
 
@@ -418,6 +437,12 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
 
     def is_enabled(self):
         return bool(self.enabled)
+
+    def _get_language(self,title=None,item=None):
+        if hasattr(item , 'audio_langs'):
+                return ''.join(item.audio_langs)
+        else:
+                return 'eng'
 
     @staticmethod
     def make_id(name):
@@ -501,12 +526,23 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
     def _get_storage_dir(self):  # pylint: disable=no-self-use
         return ''
 
+
+    def _get_audio_langs(self, item):  # pylint: disable=no-self-use
+        if not item:
+            return '', ''
+
+        audio_langs = item.get('audio_langs', '')
+
+        return audio_langs
+
+
     def _get_title_and_url(self, item):  # pylint: disable=no-self-use
         if not item:
             return '', ''
 
         title = item.get('title', '')
         url = item.get('link', '')
+        audio = item.get('audio_langs', '')
 
         if title:
             title = u'' + title.replace(' ', '.')
@@ -556,3 +592,5 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
 
     def _verify_download(self, file_name=None):  # pylint: disable=unused-argument,no-self-use
         return True
+
+

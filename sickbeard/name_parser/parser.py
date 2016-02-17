@@ -27,6 +27,7 @@ from sickbeard.name_parser import regexes
 
 from sickbeard import logger, helpers, scene_numbering, common, scene_exceptions, db
 from sickrage.helper.common import remove_extension
+from sickbeard.common import showLanguages
 from sickrage.helper.encoding import ek
 from sickrage.helper.exceptions import ex
 import dateutil
@@ -43,7 +44,7 @@ class NameParser(object):
         self.file_name = file_name
         self.showObj = showObj
         self.tryIndexers = tryIndexers
-
+        self.compiled_language_regexes =[]
         self.naming_pattern = naming_pattern
 
         if (self.showObj and not self.showObj.is_anime) or parse_method == 'normal':
@@ -98,6 +99,15 @@ class NameParser(object):
                     logger.log(u"WARNING: Invalid episode_pattern using %s regexs, %s. %s" % (dbg_str, errormsg, cur_pattern))
                 else:
                     self.compiled_regexes.append((cur_pattern_num, cur_pattern_name, cur_regex))
+
+        for (cur_pattern_name, cur_pattern) in regexes.language_regexes.iteritems():
+            try:
+                cur_regex = re.compile(cur_pattern, re.VERBOSE | re.IGNORECASE)
+                logger.log("Current Regex: " +cur_regex.pattern)
+            except re.error, errormsg:
+                logger.log(u"WARNING: Invalid language_pattern, %s. %s" % (errormsg, cur_regex.pattern))
+            else:
+                self.compiled_language_regexes.append((cur_pattern_name, cur_regex))
 
     def _parse_string(self, name):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         if not name:
@@ -163,11 +173,22 @@ class NameParser(object):
 
             if 'extra_info' in named_groups:
                 tmp_extra_info = match.group('extra_info')
+                logger.log(tmp_extra_info)
+                result.audio_langs = 'eng'
 
                 # Show.S04.Special or Show.S05.Part.2.Extras is almost certainly not every episode in the season
                 if tmp_extra_info and cur_regex_name == 'season_only' and re.search(
                         r'([. _-]|^)(special|extra)s?\w*([. _-]|$)', tmp_extra_info, re.I):
                     continue
+                if tmp_extra_info :
+                    for (cur_lang_regex_name, cur_lang_regex) in self.compiled_language_regexes:
+                        lang_match = cur_lang_regex.match(name)
+
+                        if not lang_match:
+                            continue
+                        else:
+                            logger.log(u"Found " + showLanguages.get(cur_lang_regex_name) + " episode",logger.DEBUG)
+                            result.audio_langs = cur_lang_regex_name
                 result.extra_info = tmp_extra_info
                 result.score += 1
 
@@ -430,6 +451,7 @@ class NameParser(object):
 
         # build the ParseResult object
         final_result.air_date = self._combine_results(file_name_result, dir_name_result, 'air_date')
+        final_result.audio_langs = self._combine_results(file_name_result, dir_name_result, 'audio_langs')
 
         # anime absolute numbers
         final_result.ab_episode_numbers = self._combine_results(file_name_result, dir_name_result, 'ab_episode_numbers')
@@ -478,7 +500,7 @@ class ParseResult(object):  # pylint: disable=too-many-instance-attributes
     def __init__(self, original_name, series_name=None, season_number=None,  # pylint: disable=too-many-arguments
                  episode_numbers=None, extra_info=None, release_group=None,
                  air_date=None, ab_episode_numbers=None, show=None,
-                 score=None, quality=None, version=None):
+                 score=None, quality=None, version=None, audio_langs='eng'):
 
         self.original_name = original_name
 
@@ -498,6 +520,8 @@ class ParseResult(object):  # pylint: disable=too-many-instance-attributes
             self.quality = common.Quality.UNKNOWN
         else:
             self.quality = quality
+
+        self.audio_langs = audio_langs
 
         self.extra_info = extra_info
         self.release_group = release_group
@@ -522,7 +546,8 @@ class ParseResult(object):  # pylint: disable=too-many-instance-attributes
             self.show == other.show,
             self.score == other.score,
             self.quality == other.quality,
-            self.version == other.version
+            self.version == other.version,
+            self.audio_langs == other.audio_langs
         ])
 
     def __str__(self):

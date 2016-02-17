@@ -35,6 +35,7 @@ BACKLOG_SEARCH = 10
 DAILY_SEARCH = 20
 FAILED_SEARCH = 30
 MANUAL_SEARCH = 40
+MANUAL_SEARCH_FR = 50
 
 MANUAL_SEARCH_HISTORY = []
 MANUAL_SEARCH_HISTORY_SIZE = 100
@@ -177,6 +178,52 @@ class ManualSearchQueueItem(generic_queue.QueueItem):
             self.started = True
 
             searchResult = search.searchProviders(self.show, [self.segment], True, self.downCurQuality)
+
+            if searchResult:
+                # just use the first result for now
+                logger.log(u"Downloading " + searchResult[0].name + " from " + searchResult[0].provider.name)
+                self.success = search.snatchEpisode(searchResult[0])
+
+                # give the CPU a break
+                time.sleep(common.cpu_presets[sickbeard.CPU_PRESET])
+
+            else:
+                ui.notifications.message('No downloads were found',
+                                         "Couldn't find a download for <i>%s</i>" % self.segment.prettyName())
+
+                logger.log(u"Unable to find a download for: [" + self.segment.prettyName() + "]")
+
+        except Exception:
+            logger.log(traceback.format_exc(), logger.DEBUG)
+
+        # ## Keep a list with the 100 last executed searches
+        fifo(MANUAL_SEARCH_HISTORY, self, MANUAL_SEARCH_HISTORY_SIZE)
+
+        if self.success is None:
+            self.success = False
+
+        self.finish()
+
+class ManualSearchQueueItem_fr(generic_queue.QueueItem):
+    def __init__(self, show, french=None):
+        generic_queue.QueueItem.__init__(self, u'Manual Search', MANUAL_SEARCH_FR)
+        self.priority = generic_queue.QueuePriorities.HIGH
+        self.name = 'MANUAL-' + str(show.indexerid)
+        self.success = None
+        self.show = show
+        #self.segment = segment
+        self.started = None
+        #self.downCurQuality = downCurQuality
+        self.french = french
+
+    def run(self):
+        generic_queue.QueueItem.run(self)
+
+        try:
+            logger.log(u"Beginning manual french search for: [" + self.show.prettyName() + "]")
+            self.started = True
+
+            searchResult = search.searchProviders(self.show, None, True, True, self.french)
 
             if searchResult:
                 # just use the first result for now

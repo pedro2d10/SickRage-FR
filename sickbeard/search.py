@@ -444,7 +444,7 @@ def searchForNeededEpisodes():
     return foundResults.values()
 
 
-def searchProviders(show, episodes, manualSearch=False, downCurQuality=False):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def searchProviders(show, episodes=None, manualSearch=False, downCurQuality=False, french=None):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     """
     Walk providers for information on shows
 
@@ -487,6 +487,9 @@ def searchProviders(show, episodes, manualSearch=False, downCurQuality=False):  
         if search_mode == 'sponly' and manualSearch is True:
             search_mode = 'eponly'
 
+        if french != None :
+            search_mode = 'eponly'
+
         while True:
             searchCount += 1
 
@@ -496,7 +499,10 @@ def searchProviders(show, episodes, manualSearch=False, downCurQuality=False):  
                 logger.log(u"Performing season pack search for " + show.name)
 
             try:
-                searchResults = curProvider.find_search_results(show, episodes, search_mode, manualSearch, downCurQuality)
+                if (french == None):
+                    searchResults = curProvider.find_search_results(show, episodes, search_mode, manualSearch, downCurQuality)
+                else:
+                    searchResults = curProvider.findFrench(episodes, manualSearch)
             except AuthException as e:
                 logger.log(u"Authentication error: " + ex(e), logger.ERROR)
                 break
