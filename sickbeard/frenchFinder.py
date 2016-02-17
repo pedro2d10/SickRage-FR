@@ -73,7 +73,7 @@ class FrenchFinder():
 
 
         for episode in frenchsql:
-            logger.log(sickbeard.showList)
+
             showObj = Show.find(sickbeard.showList, int(episode[0]))
             if showObj == None:
                 logger.log( "Show not in show list")
@@ -86,6 +86,7 @@ class FrenchFinder():
 
         #for each episode in frenchlist fire a search in french
         delay=[]
+        temp=None
         rest=count[0][0]
         for frepisode in frenchlist:
             rest=rest-1
@@ -99,12 +100,27 @@ class FrenchFinder():
                     continue
 
                 logger.log(u"Searching for french episode on "+curProvider.name +" for " +frepisode.show.name +" season "+str(frepisode.season)+" episode "+str(frepisode.episode))
-                try:
-                    curfrench =  GenericProvider.findFrench(frepisode, True)
+                #try:
+                #    logger.log(frepisode)
+                #    temp = GenericProvider()
+                #    curfrench = temp.findFrench(self, episode=frepisode, manualSearch=True)
+                    #curfrench =  GenericProvider.findFrench(episode=frepi  sode,manualSearch=True)
                     #curProvider.findFrench(frepisode, manualSearch=True)
-                except:
-                    logger.log(u"Exception", logger.DEBUG)
-                    pass
+                #except:
+                #    logger.log(u"Exception", logger.DEBUG)
+                #    pass
+
+                #for curProvider in providers:
+                #    if curProvider.anime_only and not show.is_anime:
+                #        logger.log(u"" + str(show.name) + " is not an anime, skipping", logger.DEBUG)
+                #        continue
+
+                curfrench = curProvider.findFrench(frepisode, True)
+
+
+                #temp = GenericProvider('temp')
+                #curfrench = temp.findFrench( episode=frepisode, manualSearch=True)
+
                 test=0
                 if curfrench:
                     for x in curfrench:

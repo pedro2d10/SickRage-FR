@@ -88,13 +88,15 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
 
     def search(self, search_params, age=0, ep_obj=None, french=None):  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
         results = []
+
+        logger.log("dans t411")
         if not self.login():
             return results
 
-        if (french != None):
+        if (french == None):
             self.urls['search'] = self.urls['search'] + '&term[17][]=721'
         else:
-            self.urls['search'] = self.urls['search'] + '&term[17][]=541&term[17][]=542'
+            self.urls['search'] = self.urls['search'] + '&term[51][]=1210'
 
         for mode in search_params:
             items = []

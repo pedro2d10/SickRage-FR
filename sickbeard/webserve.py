@@ -1681,7 +1681,6 @@ class Home(WebRoot):
         return self.redirect("/home/displayShow?show=" + str(showObj.indexerid))
 
     def frenchSearch(self, show=None, force=0):
-
         if show is None:
             return self._genericMessage("Error", "Invalid show ID")
 
@@ -1690,12 +1689,37 @@ class Home(WebRoot):
         if showObj is None:
             return self._genericMessage("Error", "Unable to find the specified show")
 
-        # search and download subtitles
+
+
+        #search and download subtitles
         sickbeard.showQueueScheduler.action.searchFrench(showObj, bool(force)) #@UndefinedVariable
+
+        #self.searchEpisode_fr(showObj, 'french' )
 
         time.sleep(cpu_presets[sickbeard.CPU_PRESET])
 
         return self.redirect("/home/displayShow?show=" + str(showObj.indexerid))
+
+
+    def searchEpisode_fr(self, show=None, french=None):
+
+        # retrieve the episode object and fail if we can't get one
+        #ep_obj = self._getEpisode(show, season, episode)
+        #if isinstance(ep_obj, str):
+        #    return json.dumps({'result': 'failure'})
+
+        # make a queue item for it and put it on the queue
+        ep_queue_item = search_queue.ManualSearchQueueItem_fr(show)
+
+        sickbeard.searchQueueScheduler.action.add_item(ep_queue_item)
+
+        if not ep_queue_item.started and ep_queue_item.success is None:
+            return json.dumps(
+                {'result': 'success'})  # I Actually want to call it queued, because the search hasnt been started yet!
+        if ep_queue_item.started and ep_queue_item.success is None:
+            return json.dumps({'result': 'success'})
+        else:
+            return json.dumps({'result': 'failure'})
 
     def updateKODI(self, show=None):
         showName = None

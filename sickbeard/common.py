@@ -765,10 +765,9 @@ class Overview(object):  # pylint: disable=too-few-public-methods
         SNATCHED_FRENCH: "snatched"
     })
 
-showLanguages = {'en':'english',
-                 'fr':'french',
-				 '':'unknown'
-                 }
+showLanguages = {'eng':'english',
+                 'fre':'french',
+				 '':'unknown'}
 
 countryList = {
     'Australia': 'AU',
