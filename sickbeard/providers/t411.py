@@ -93,8 +93,10 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
         if not self.login():
             return results
 
+        self.urls['search'] = 'https://api.t411.in/torrents/search/%s*?cid=%s&limit=100'
+
         if (french == None):
-            self.urls['search'] = self.urls['search'] + '&term[17][]=721'
+            self.urls['search'] = self.urls['search'] + '&term[51][]=1216'
         else:
             self.urls['search'] = self.urls['search'] + '&term[51][]=1210'
 
