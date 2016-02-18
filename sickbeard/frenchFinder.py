@@ -25,13 +25,14 @@ from sickbeard import db
 from sickbeard import logger, show_name_helpers
 from sickbeard import providers
 from sickbeard import search
-from sickbeard.common import SNATCHED_FRENCH
+from sickbeard.common import SNATCHED_FRENCH, SEASON_RESULT
 from sickbeard.common import showLanguages
 from sickrage.show.Show import Show
 from sickrage.providers.GenericProvider import GenericProvider
 
 resultFilters = ["sub(pack|s|bed)", "nlsub(bed|s)?", "swesub(bed)?",
                  "(dir|sample|nfo)fix", "sample", "(dvd)?extras"]
+
 
 
 class FrenchFinder():
@@ -48,6 +49,8 @@ class FrenchFinder():
         if sickbeard.showList==None:
             return
         logger.log(u"Beginning the search for french episodes older than "+ str(sickbeard.FRENCH_DELAY) +" days")
+        foundResults = {}
+        finalResults = []
         #show = self
         frenchlist=[]
         #get list of english episodes that we want to search in french
@@ -96,6 +99,8 @@ class FrenchFinder():
             result=[]
             for curProvider in providers.sortedProviderList():
 
+                foundResults[curProvider.name] = {}
+
                 if not curProvider.is_active():
                     continue
 
@@ -115,36 +120,61 @@ class FrenchFinder():
                 #        logger.log(u"" + str(show.name) + " is not an anime, skipping", logger.DEBUG)
                 #        continue
 
-                curfrench = curProvider.findFrench(frepisode, True)
+                curfrench = curProvider.find_search_results(frepisode.show, frenchlist, 'sponly', True, True, 'french')
+
+                #curfrench = curProvider.findFrench(frepisode, True)
 
 
                 #temp = GenericProvider('temp')
                 #curfrench = temp.findFrench( episode=frepisode, manualSearch=True)
 
-                test=0
-                if curfrench:
-                    for x in curfrench:
-                        if not show_name_helpers.filterBadReleases(x.name):
-                            logger.log(u"French "+x.name+" isn't a valid scene release that we want, ignoring it", logger.DEBUG)
-                            test+=1
-                            continue
-                        if sickbeard.IGNORE_WORDS == "":
-                            ignore_words="ztreyfgut"
+                if len(curfrench):
+                #make a list of all the results for this provider
+                    for curEp in curfrench:
+                        if curEp in foundResults:
+                            foundResults[curProvider.name][curEp] += curfrench[curEp]
                         else:
-                            ignore_words=str(sickbeard.IGNORE_WORDS)
-                        for fil in resultFilters + ignore_words.split(','):
-                            if fil == showLanguages.get(u"fr"):
-                                continue
-                            if re.search('(^|[\W_])'+fil+'($|[\W_])', x.url, re.I) or re.search('(^|[\W_])'+fil+'($|[\W_])', x.name, re.I) :
-                                logger.log(u"Invalid scene release: "+x.url+" contains "+fil+", ignoring it", logger.DEBUG)
+                            foundResults[curProvider.name][curEp] = curfrench[curEp]
+
+
+
+                if not foundResults[curProvider.name]:
+                    continue
+
+                bestSeasonResult = None
+                #if SEASON_RESULT in foundResults[curProvider.name]:
+                #    bestSeasonResult = search.pickBestResult(foundResults[curProvider.name][SEASON_RESULT], show)
+                #_______________________________________________________
+                test=0
+                if foundResults[curProvider.name]:
+                    for cur_episode in foundResults[curProvider.name]:
+                        for x in foundResults[curProvider.name][cur_episode]:
+                            tmp = x
+                            if not show_name_helpers.filterBadReleases(x.name):         #x.name):
+                                logger.log(u"French "+x.name+" isn't a valid scene release that we want, ignoring it", logger.DEBUG)
                                 test+=1
+                                continue
+                            if sickbeard.IGNORE_WORDS == "":
+                                ignore_words="ztreyfgut"
+                            else:
+                                ignore_words=str(sickbeard.IGNORE_WORDS)
+                            for fil in resultFilters + ignore_words.split(','):
+                                if fil == showLanguages.get(u"fre"):
+                                    continue
+                                if re.search('(^|[\W_])'+fil+'($|[\W_])', x.url, re.I) or re.search('(^|[\W_])'+fil+'($|[\W_])', x.name, re.I) :
+                                    logger.log(u"Invalid scene release: "+x.url+" contains "+fil+", ignoring it", logger.DEBUG)
+                                    test+=1
+
                     if test==0:
                         result.append(x)
+
+
+
             best=None
             try:
                 epi={}
                 epi[1]=frepisode
-                best = search.pickBestResult(result, episode = epi)
+                best = search.pickBestResult(result, showObj)
             except:
                 pass
             if best:

@@ -103,7 +103,7 @@ class NameParser(object):
         for (cur_pattern_name, cur_pattern) in regexes.language_regexes.iteritems():
             try:
                 cur_regex = re.compile(cur_pattern, re.VERBOSE | re.IGNORECASE)
-                logger.log("Current Regex: " +cur_regex.pattern)
+                #logger.log("Current Regex: " +cur_regex.pattern)
             except re.error, errormsg:
                 logger.log(u"WARNING: Invalid language_pattern, %s. %s" % (errormsg, cur_regex.pattern))
             else:
