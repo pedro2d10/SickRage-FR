@@ -43,7 +43,7 @@ class TorrentProvider(GenericProvider):
         db = DBConnection()
         placeholder = ','.join([str(x) for x in Quality.DOWNLOADED + Quality.SNATCHED + Quality.SNATCHED_BEST])
         sql_results = db.select(
-            'SELECT s.show_name, e.showid, e.season, e.episode, e.status, e.airdate'
+            'SELECT s.show_name, s.lang, e.showid, e.season, e.episode, e.status, e.airdate'
             ' FROM tv_episodes AS e'
             ' INNER JOIN tv_shows AS s ON (e.showid = s.indexer_id)'
             ' WHERE e.airdate >= ' + str(search_date.toordinal()) +

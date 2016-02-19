@@ -112,7 +112,7 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
         return [Proper(x['name'], x['url'], datetime.fromtimestamp(x['time']), self.show) for x in results]
 
     def find_search_results(self, show, episodes, search_mode,  # pylint: disable=too-many-branches,too-many-arguments,too-many-locals,too-many-statements
-                            manual_search=False, download_current_quality=False):
+                            manual_search=False, download_current_quality=False, french=None):
         self._check_auth()
         self.show = show
 
@@ -123,7 +123,7 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
         for episode in episodes:
             cache_result = self.cache.searchCache(episode, manualSearch=manual_search,
                                                   downCurQuality=download_current_quality)
-            if cache_result:
+            if cache_result and not french:
                 if episode.episode not in results:
                     results[episode.episode] = cache_result
                 else:
@@ -147,7 +147,10 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
                 logger.log(u'First search_string has rid', logger.DEBUG)
 
             for search_string in search_strings:
-                items_list += self.search(search_string, ep_obj=episode)
+                if french:
+                    items_list += self.search(search_string, ep_obj=episode, french='french')
+                else:
+                    items_list += self.search(search_string, ep_obj=episode)
 
                 if first:
                     first = False
@@ -196,6 +199,7 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
             release_group = parse_result.release_group
             version = parse_result.version
             add_cache_entry = False
+            language = parse_result.audio_langs
 
             if not (show_object.air_by_date or show_object.sports):
                 if search_mode == 'sponly':
@@ -223,6 +227,20 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
 
                         logger.log(
                             u'The result %s doesn\'t seem to match an episode that we are currently trying to snatch, skipping it' % title,
+                            logger.DEBUG)
+                        add_cache_entry = True
+
+                if french == 'french':
+                    if parse_result.audio_langs != 'fre':
+                        logger.log(
+                            u'The result %s doesn\'t should be in french but it\'s not, skipping it' % title,
+                            logger.DEBUG)
+                        add_cache_entry = True
+
+                if show.lang == 'fr':
+                     if parse_result.audio_langs != 'fre':
+                        logger.log(
+                            u'The result %s should be in french but it\'s not, skipping it' % title,
                             logger.DEBUG)
                         add_cache_entry = True
 
@@ -327,33 +345,30 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
 
         return results
 
-    def findFrench(self, episode=None, manualSearch=False):
-        logger.log("Coucou")
+    def findFrench(self, episode=None, manualSearch=False, search_mode=None):
         results = []
         self._check_auth()
 
         logger.log(u"Searching "+self.name+" for " + episode.prettyName())
 
         itemList = []
-        search_strings = self._get_episode_search_strings(episode)
+        if not search_mode:
+            search_strings = self._get_episode_search_strings(episode)
+        elif search_mode == 'sponly':
+            search_strings = self._get_season_search_strings(episode)
+
         first = search_strings and isinstance(search_strings[0], dict) and 'rid' in search_strings[0]
 
-        logger.log("First : " +str (first))
+
 
         if first:
                 logger.log(u'First search_string has rid', logger.DEBUG)
 
         for cur_search_string in search_strings:
-            logger.log(cur_search_string)
             itemList += self.search(cur_search_string, ep_obj=episode, french='french')
                 #(cur_search_string, show=episode.show, french='french')
 
 
-        if itemList:
-            logger.log("itemlist pleine!")
-        else:
-            logger.log("itemlist vide!")
-        logger.log(itemList)
 
         for item in itemList:
 
@@ -370,15 +385,18 @@ class GenericProvider(object):  # pylint: disable=too-many-instance-attributes
             #language = self._get_language(title, item)
              #quality = self.get_quality(item)
             language = parse_result.audio_langs
-            logger.log (language)
+            #logger.log (language)
 
             if episode.show.air_by_date:
                 if parse_result.air_date != episode.airdate:
                     logger.log("Episode "+title+" didn't air on "+str(episode.airdate)+", skipping it", logger.DEBUG)
                     continue
-            elif parse_result.season_number != episode.season or episode.episode not in parse_result.episode_numbers:
+            elif parse_result.season_number != episode.season or episode.episode not in parse_result.episode_numbers and not search_mode:
                 logger.log("Episode "+title+" isn't "+str(episode.season)+"x"+str(episode.episode)+", skipping it", logger.DEBUG)
                 continue
+            elif parse_result.season_number != episode.season and search_mode != 'sponly':
+                logger.log("Season "+ parse_result.season_number +"invalid, skipping it", logger.DEBUG)
+
 
             quality = self.get_quality(item)
 

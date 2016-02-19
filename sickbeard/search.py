@@ -247,6 +247,9 @@ def pickBestResult(results, show):  # pylint: disable=too-many-branches
                 logger.log(cur_result.name + u" has previously failed, rejecting it")
                 continue
 
+
+
+
         if not bestResult:
             bestResult = cur_result
         elif cur_result.quality in bestQualities and (bestResult.quality < cur_result.quality or bestResult.quality not in bestQualities):
@@ -338,6 +341,7 @@ def wantedEpisodes(show, fromDate):
 
     allowed_qualities, preferred_qualities = common.Quality.splitQuality(show.quality)
     all_qualities = list(set(allowed_qualities + preferred_qualities))
+    allowed_language = show.lang
 
     logger.log(u"Seeing if we need anything from " + show.name, logger.DEBUG)
     con = db.DBConnection()
