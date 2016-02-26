@@ -1222,7 +1222,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
                         "dvdorder": self.dvdorder,
                         "startyear": self.startyear,
                         "lang": self.lang,
-                        "audio_langs": self.audio_langs,
+                        "audio_lang": self.audio_lang,
                         "imdb_id": self.imdbid,
                         "last_update_indexer": self.last_update_indexer,
                         "rls_ignore_words": self.rls_ignore_words,
