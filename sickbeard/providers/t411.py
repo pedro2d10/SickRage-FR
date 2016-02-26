@@ -55,7 +55,7 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
 
         self.subcategories = [433, 637, 455, 639]
 
-        self.term_fr = [541, 542]
+        self.term_fr = ["[51][]=1210", "[17][]=541"]
         self.term_en = 540
 
         self.minseed = 0
@@ -89,14 +89,14 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
     def search(self, search_params, age=0, ep_obj=None, french=None):  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
         results = []
 
-        logger.log("dans t411")
+        
         if not self.login():
             return results
 
         self.urls['search'] = 'https://api.t411.in/torrents/search/%s*?cid=%s&limit=100'
 
-        if french is not None:
-            self.urls['search'] = self.urls['search'] + '&term[51][]=1210'
+        #if french is not None:
+        #    self.urls['search'] = self.urls['search'] + '&term[51][]=1210'
 
         for mode in search_params:
             items = []
@@ -107,7 +107,19 @@ class T411Provider(TorrentProvider):  # pylint: disable=too-many-instance-attrib
                     logger.log(u"Search string: {search}".format(search=search_string.decode('utf-8')),
                                logger.DEBUG)
 
+                search_url2= []
+                #j=0;
                 search_urlS = ([self.urls['search'] % (search_string, u) for u in self.subcategories], [self.urls['rss']])[mode == 'RSS']
+                for u in self.term_fr:
+                    for i in search_urlS:
+                        stringtoadd = i + "&term" + u
+                        search_url2.append( stringtoadd)
+                        #search_url2 += u + "&term" + i
+                        #j=j+1
+
+                search_urlS = search_urlS + search_url2
+
+
                 for search_url in search_urlS:
                     logger.log(u"Search URL: %s" % search_url, logger.DEBUG)
                     data = self.get_url(search_url, json=True)
