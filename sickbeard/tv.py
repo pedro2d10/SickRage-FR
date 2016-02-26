@@ -81,7 +81,7 @@ def dirty_setter(attr_name):
 
 
 class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-public-methods
-    def __init__(self, indexer, indexerid, lang="", audio_lang=""):
+    def __init__(self, indexer, indexerid, lang="", audio_lang="", audio_langs=""):
         self._indexerid = int(indexerid)
         self._indexer = int(indexer)
         self._name = ""
@@ -102,6 +102,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
         self._dvdorder = 0
         self._lang = lang
         self._audio_lang = audio_lang
+        self._audio_langs = audio_langs
         self._last_update_indexer = 1
         self._sports = 0
         self._anime = 0
@@ -146,6 +147,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
     dvdorder = property(lambda self: self._dvdorder, dirty_setter("_dvdorder"))
     lang = property(lambda self: self._lang, dirty_setter("_lang"))
     audio_lang = property(lambda self: self._audio_lang, dirty_setter("_audio_lang"))
+    audio_langs = property(lambda self: self._audio_langs, dirty_setter("_audio_langs"))
     last_update_indexer = property(lambda self: self._last_update_indexer, dirty_setter("_last_update_indexer"))
     sports = property(lambda self: self._sports, dirty_setter("_sports"))
     anime = property(lambda self: self._anime, dirty_setter("_anime"))
@@ -471,7 +473,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
 
         try:
             main_db_con = db.DBConnection()
-            sql = "SELECT season, episode, showid, show_name FROM tv_episodes JOIN tv_shows WHERE showid = indexer_id and showid = ?"
+            sql = "SELECT season, episode, showid, show_name, audio_langs FROM tv_episodes JOIN tv_shows WHERE showid = indexer_id and showid = ?"
             sql_results = main_db_con.select(sql, [self.indexerid])
         except Exception as error:
             logger.log(u"Could not load episodes from the DB. Error: %s" % error, logger.ERROR)
@@ -503,6 +505,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             curEpisode = int(curResult["episode"])
             curShowid = int(curResult['showid'])
             curShowName = str(curResult['show_name'])
+
 
             logger.log(u"%s: Loading %s episodes from DB" % (curShowid, curShowName), logger.DEBUG)
             deleteEp = False
@@ -555,6 +558,8 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
 
         if self.lang:
             lINDEXER_API_PARMS['language'] = self.lang
+
+
 
         if self.dvdorder != 0:
             lINDEXER_API_PARMS['dvdorder'] = True
@@ -828,6 +833,12 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
             self.flatten_folders = int(sql_results[0]["flatten_folders"] or 0)
             self.paused = int(sql_results[0]["paused"] or 0)
             self.frenchsearch = int(sql_results[0]["frenchsearch"] or 0)
+
+            self.audio_lang = sql_results[0]["audio_lang"]
+            if self.audio_lang is None:
+                self.audio_lang = ""
+
+
 
             try:
                 self.location = sql_results[0]["location"]
@@ -1211,7 +1222,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
                         "dvdorder": self.dvdorder,
                         "startyear": self.startyear,
                         "lang": self.lang,
-                        "audio_lang": self.audio_lang,
+                        "audio_langs": self.audio_langs,
                         "imdb_id": self.imdbid,
                         "last_update_indexer": self.last_update_indexer,
                         "rls_ignore_words": self.rls_ignore_words,
@@ -1241,7 +1252,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
         if self.airs:
             toReturn += "airs: " + self.airs + "\n"
         toReturn += "status: " + self.status + "\n"
-        toReturn += "languages: " + str(self.audio_langs) + "\n"
+        toReturn += "languages: " + str(self.lang) + "\n"
         toReturn += "startyear: " + str(self.startyear) + "\n"
         if self.genre:
             toReturn += "genre: " + self.genre + "\n"
@@ -1251,6 +1262,7 @@ class TVShow(object):  # pylint: disable=too-many-instance-attributes, too-many-
         toReturn += "scene: " + str(self.is_scene) + "\n"
         toReturn += "sports: " + str(self.is_sports) + "\n"
         toReturn += "anime: " + str(self.is_anime) + "\n"
+        toReturn += "audio_langs: " + str(self.audio_langs) + "\n"
         return toReturn
 
     @staticmethod
@@ -1398,6 +1410,7 @@ class TVEpisode(object):  # pylint: disable=too-many-instance-attributes, too-ma
         self._is_proper = False
         self._version = 0
         self._release_group = ''
+        self._audio_langs = ''
 
         # setting any of the above sets the dirty flag
         self.dirty = True
@@ -1442,6 +1455,8 @@ class TVEpisode(object):  # pylint: disable=too-many-instance-attributes, too-ma
     is_proper = property(lambda self: self._is_proper, dirty_setter("_is_proper"))
     version = property(lambda self: self._version, dirty_setter("_version"))
     release_group = property(lambda self: self._release_group, dirty_setter("_release_group"))
+    audio_langs = property(lambda self: self._audio_langs, dirty_setter("_audio_langs"))
+
 
     def _set_location(self, new_location):
         logger.log(u"Setter sets location to " + new_location, logger.DEBUG)
@@ -1634,6 +1649,9 @@ class TVEpisode(object):  # pylint: disable=too-many-instance-attributes, too-ma
 
             if sql_results[0]["release_group"] is not None:
                 self.release_group = sql_results[0]["release_group"]
+
+            if sql_results[0]["audio_langs"] is not None:
+                self.audio_langs = sql_results[0]["audio_langs"]
 
             self.dirty = False
             return True
@@ -1882,6 +1900,7 @@ class TVEpisode(object):  # pylint: disable=too-many-instance-attributes, too-ma
         toReturn += u"hasnfo: %r\n" % self.hasnfo
         toReturn += u"hastbn: %r\n" % self.hastbn
         toReturn += u"status: %r\n" % self.status
+        toReturn += u"audio_langs: %r\n" % self.audio_langs
         return toReturn
 
     def createMetaFiles(self):
@@ -1962,37 +1981,37 @@ class TVEpisode(object):  # pylint: disable=too-many-instance-attributes, too-ma
                         "UPDATE tv_episodes SET indexerid = ?, indexer = ?, name = ?, description = ?, subtitles = ?, "
                         "subtitles_searchcount = ?, subtitles_lastsearch = ?, airdate = ?, hasnfo = ?, hastbn = ?, status = ?, "
                         "location = ?, file_size = ?, release_name = ?, is_proper = ?, showid = ?, season = ?, episode = ?, "
-                        "absolute_number = ?, version = ?, release_group = ? WHERE episode_id = ?",
+                        "absolute_number = ?, version = ?, release_group = ?, audio_langs = ? WHERE episode_id = ?",
                         [self.indexerid, self.indexer, self.name, self.description, ",".join(self.subtitles),
                          self.subtitles_searchcount, self.subtitles_lastsearch, self.airdate.toordinal(), self.hasnfo,
                          self.hastbn,
                          self.status, self.location, self.file_size, self.release_name, self.is_proper, self.show.indexerid,
-                         self.season, self.episode, self.absolute_number, self.version, self.release_group, epID]]
+                         self.season, self.episode, self.absolute_number, self.version, self.release_group, self.audio_langs, epID]]
                 else:
                     # Don't update the subtitle language when the srt file doesn't contain the alpha2 code, keep value from subliminal
                     return [
                         "UPDATE tv_episodes SET indexerid = ?, indexer = ?, name = ?, description = ?, "
                         "subtitles_searchcount = ?, subtitles_lastsearch = ?, airdate = ?, hasnfo = ?, hastbn = ?, status = ?, "
                         "location = ?, file_size = ?, release_name = ?, is_proper = ?, showid = ?, season = ?, episode = ?, "
-                        "absolute_number = ?, version = ?, release_group = ? WHERE episode_id = ?",
+                        "absolute_number = ?, version = ?, release_group = ?, audio_langs = ? WHERE episode_id = ?",
                         [self.indexerid, self.indexer, self.name, self.description,
                          self.subtitles_searchcount, self.subtitles_lastsearch, self.airdate.toordinal(), self.hasnfo,
                          self.hastbn,
                          self.status, self.location, self.file_size, self.release_name, self.is_proper, self.show.indexerid,
-                         self.season, self.episode, self.absolute_number, self.version, self.release_group, epID]]
+                         self.season, self.episode, self.absolute_number, self.version, self.release_group, self.audio_langs, epID]]
             else:
                 # use a custom insert method to get the data into the DB.
                 return [
                     "INSERT OR IGNORE INTO tv_episodes (episode_id, indexerid, indexer, name, description, subtitles, "
                     "subtitles_searchcount, subtitles_lastsearch, airdate, hasnfo, hastbn, status, location, file_size, "
-                    "release_name, is_proper, showid, season, episode, absolute_number, version, release_group) VALUES "
+                    "release_name, is_proper, showid, season, episode, absolute_number, version, release_group, audio_langs) VALUES "
                     "((SELECT episode_id FROM tv_episodes WHERE showid = ? AND season = ? AND episode = ?)"
-                    ",?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);",
+                    ",?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);",
                     [self.show.indexerid, self.season, self.episode, self.indexerid, self.indexer, self.name,
                      self.description, ",".join(self.subtitles), self.subtitles_searchcount, self.subtitles_lastsearch,
                      self.airdate.toordinal(), self.hasnfo, self.hastbn, self.status, self.location, self.file_size,
                      self.release_name, self.is_proper, self.show.indexerid, self.season, self.episode,
-                     self.absolute_number, self.version, self.release_group]]
+                     self.absolute_number, self.version, self.release_group, self.audio_langs]]
         except Exception as e:
             logger.log(u"Error while updating database: %s" %
                        (repr(e)), logger.ERROR)

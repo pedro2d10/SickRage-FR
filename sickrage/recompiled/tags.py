@@ -23,3 +23,7 @@ anime_sd = re.compile(r'(848x480|480p|360p|xvid)', re.IGNORECASE)
 anime_hd = re.compile(r'((1280|960)x720|720p)', re.IGNORECASE)
 anime_fullhd = re.compile(r'(1920x1080|1080p)', re.IGNORECASE)
 anime_bluray = re.compile(r'(blue?-?ray|b[rd](?:rip|mux)|\bbd\b)', re.IGNORECASE)
+
+#french
+french = re.compile(r'(french)', re.IGNORECASE)
+english = re.compile(r'(vostfr)', re.IGNORECASE)

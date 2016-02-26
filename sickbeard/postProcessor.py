@@ -28,6 +28,8 @@ import stat
 
 import sickbeard
 
+from os import path
+
 from sickbeard import db
 from sickbeard import common
 from sickbeard import helpers
@@ -99,6 +101,8 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         self.version = None
 
         self.anidbEpisode = None
+
+        self.audio_langs = None
 
     def _log(self, message, level=logger.INFO):
         """
@@ -479,7 +483,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         :return: A (indexer_id, season, [], quality, version) tuple. The first two may be None if none were found.
         """
 
-        to_return = (None, None, [], None, None)
+        to_return = (None, None, [], None, None, None)
 
         # if we don't have either of these then there's nothing to use to search the history for anyway
         if not self.nzb_name and not self.folder_name:
@@ -499,7 +503,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         main_db_con = db.DBConnection()
         for curName in names:
             search_name = re.sub(r"[\.\- ]", "_", curName)
-            sql_results = main_db_con.select("SELECT showid, season, quality, version, resource FROM history WHERE resource LIKE ? AND (action % 100 = 4 OR action % 100 = 6)", [search_name])
+            sql_results = main_db_con.select("SELECT showid, season, quality, version, resource, audio_langs FROM history WHERE resource LIKE ? AND (action % 100 = 4 OR action % 100 = 6)", [search_name])
 
             if len(sql_results) == 0:
                 continue
@@ -508,6 +512,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
             season = int(sql_results[0]["season"])
             quality = int(sql_results[0]["quality"])
             version = int(sql_results[0]["version"])
+            audio_langs = int(sql_results[0]["audio_langs"])
 
             if quality == common.Quality.UNKNOWN:
                 quality = None
@@ -516,7 +521,8 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
 
             self.in_history = True
             self.version = version
-            to_return = (show, season, [], quality, version)
+            self.audio_langs = audio_langs
+            to_return = (show, season, [], quality, version, audio_langs)
 
             qual_str = common.Quality.qualityStrings[quality] if quality is not None else quality
             self._log("Found result in history for {} - Season: {} - Quality: {} - Version: {}".format
@@ -566,7 +572,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         if none were found.
         """
 
-        to_return = (None, None, [], None, None)
+        to_return = (None, None, [], None, None, None)
 
         if not name:
             return to_return
@@ -592,7 +598,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
             season = parse_result.season_number
             episodes = parse_result.episode_numbers
 
-        to_return = (show, season, episodes, parse_result.quality, None)
+        to_return = (show, season, episodes, parse_result.quality, None, parse_result.audio_langs)
 
         self._finalize(parse_result)
         return to_return
@@ -635,7 +641,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         :return: A (show, season, episodes, quality, version) tuple
         """
 
-        show = season = quality = version = None
+        show = season = quality = version = audio_langs = None
         episodes = []
 
         # try to look up the nzb in history
@@ -655,14 +661,16 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
             lambda: self._analyze_name(self.file_path),
 
             # try to analyze the dir + file name together as one name
-            lambda: self._analyze_name(self.folder_name + u' ' + self.file_name)
+            lambda: self._analyze_name(self.folder_name + u' ' + self.file_name),
+
+            lambda: self._analyze_name(self.audio_langs)
         ]
 
         # attempt every possible method to get our info
         for cur_attempt in attempt_list:
 
             try:
-                cur_show, cur_season, cur_episodes, cur_quality, cur_version = cur_attempt()
+                cur_show, cur_season, cur_episodes, cur_quality, cur_version , cur_audio_langs= cur_attempt()
             except (InvalidNameException, InvalidShowException) as error:
                 logger.log(u"{}".format(error), logger.DEBUG)
                 continue
@@ -683,6 +691,9 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
                 season = cur_season
             if cur_episodes:
                 episodes = cur_episodes
+
+            #if cur_audio_langs:
+            #    audio_langs = cur_audio_langs
 
             # for air-by-date shows we need to look up the season/episode from database
             if season == -1 and show and episodes:
@@ -735,9 +746,9 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
                     season = 1
 
             if show and season and episodes:
-                return show, season, episodes, quality, version
+                return show, season, episodes, quality, version, audio_langs
 
-        return show, season, episodes, quality, version
+        return show, season, episodes, quality, version, audio_langs
 
     def _get_ep_obj(self, show, season, episodes):
         """
@@ -804,6 +815,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
                 continue
 
             ep_quality = common.Quality.nameQuality(cur_name, ep_obj.show.is_anime)
+
             self._log(
                 u"Looking up quality for name " + cur_name + u", got " + common.Quality.qualityStrings[ep_quality],
                 logger.DEBUG)
@@ -910,6 +922,21 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
 
         return False
 
+    def _screne_french(self, name=""):
+        if not name:
+            return ""
+        else:
+            name = ek(path.basename, name)
+
+        match_obj = '%s_match' % 'french'
+        french = self._get_match_obj('french')
+        return french
+
+    def _get_match_obj(self, attr):
+        #match_obj = '%s_match' % attr
+        match_obj = attr
+        return getattr(self, 'french')
+
     def process(self):  # pylint: disable=too-many-return-statements, too-many-locals, too-many-branches, too-many-statements
         """
         Post-process a given file
@@ -939,7 +966,7 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         self.anidbEpisode = None
 
         # try to find the file info
-        (show, season, episodes, quality, version) = self._find_info()
+        (show, season, episodes, quality, version, audio_langs) = self._find_info()
         if not show:
             self._log(u"This show isn't in your list, you need to add it to SR before post-processing an episode")
             raise EpisodePostProcessingFailedException()
@@ -950,6 +977,13 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         # retrieve/create the corresponding TVEpisode objects
         ep_obj = self._get_ep_obj(show, season, episodes)
         _, old_ep_quality = common.Quality.splitCompositeStatus(ep_obj.status)
+        #ep_french = self._screne_french(self.file_name)
+
+        audio_langs = common.scene_french(self.file_name)
+
+        if audio_langs == 'fre':
+            self._log(u"The epidose is in french",
+                      logger.DEBUG)
 
         # get the quality of the episode we're processing
         if quality and not common.Quality.qualityStrings[quality] == 'Unknown':
@@ -1074,6 +1108,8 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
 
                 cur_ep.version = new_ep_version
 
+                cur_ep.audio_langs = audio_langs
+
                 if self.release_group:
                     cur_ep.release_group = self.release_group
                 else:
@@ -1164,6 +1200,17 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
                 cur_ep.location = ek(os.path.join, dest_path, new_file_name)
                 sql_l.append(cur_ep.get_sql())
 
+
+        if len(sql_l) > 0:
+            main_db_con = db.DBConnection()
+            main_db_con.mass_action(sql_l)
+
+        sql_l = []
+        for cur_ep in [ep_obj] + ep_obj.relatedEps:
+            with cur_ep.lock:
+                cur_ep.audio_lang = audio_langs
+                sql_l.append(cur_ep.get_sql())
+
         if len(sql_l) > 0:
             main_db_con = db.DBConnection()
             main_db_con.mass_action(sql_l)
@@ -1214,3 +1261,5 @@ class PostProcessor(object):  # pylint: disable=too-many-instance-attributes
         self._run_extra_scripts(ep_obj)
 
         return True
+
+
