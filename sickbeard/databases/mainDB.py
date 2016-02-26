@@ -315,7 +315,7 @@ class InitialSchema(db.SchemaUpgrade):
         if not self.hasTable("tv_shows") and not self.hasTable("db_version"):
             queries = [
                 "CREATE TABLE db_version(db_version INTEGER);",
-                "CREATE TABLE history(action NUMERIC, date NUMERIC, showid NUMERIC, season NUMERIC, episode NUMERIC, quality NUMERIC, resource TEXT, provider TEXT, version NUMERIC DEFAULT -1);",
+                "CREATE TABLE history(action NUMERIC, date NUMERIC, showid NUMERIC, season NUMERIC, episode NUMERIC, quality NUMERIC, resource TEXT, provider TEXT, version NUMERIC DEFAULT -1, audio_langs TEXT);",
                 "CREATE TABLE imdb_info(indexer_id INTEGER PRIMARY KEY, imdb_id TEXT, title TEXT, year NUMERIC, akas TEXT, runtimes NUMERIC, genres TEXT, countries TEXT, country_codes TEXT, certificates TEXT, rating TEXT, votes INTEGER, last_update NUMERIC);",
                 "CREATE TABLE info(last_backlog NUMERIC, last_indexer NUMERIC, last_proper_search NUMERIC);",
                 "CREATE TABLE scene_numbering(indexer TEXT, indexer_id INTEGER, season INTEGER, episode INTEGER, scene_season INTEGER, scene_episode INTEGER, absolute_number NUMERIC, scene_absolute_number NUMERIC, PRIMARY KEY(indexer_id, season, episode));",
@@ -1166,9 +1166,12 @@ class AddShowLangsToEpisode (AddAudioLang):
 
 class AddFrenchSearch (AddShowLangsToEpisode):
     def test(self):
-        return self.checkDBVersion() >= 42 and self.hasColumn("tv_shows", "frenchsearch")
+        return self.checkDBVersion() >= 42 and self.hasColumn("tv_shows", "frenchsearch") and self.hasColumn("history", "audio_langs")
 
     def execute(self):
         if self.hasColumn("tv_shows", "frenchsearch") != True:
             self.addColumn("tv_shows", "frenchsearch", "NUMERIC", 0)
+        if self.hasColumn("history", "audio_langs") != True:
+            self.addColumn("history", "audio_langs")
         self.inc_minor_version()
+

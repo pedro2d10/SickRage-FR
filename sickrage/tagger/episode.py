@@ -11,6 +11,42 @@ from sickrage.recompiled import tags
 from sickrage.helper.common import try_int
 
 
+class Episode_fr(object):
+    def __init__(self, name):
+        self.name = name
+        self.rex = {
+            u'french' : tags.french,
+            u'vostfr' : tags.english,
+        }
+
+    def _get_match_obj(self, attr, regex=None, flags=0):
+        match_obj = '%s_match' % attr
+        try:
+            return getattr(self, match_obj)
+        except (KeyError, AttributeError):
+            regex = regex or self.rex[attr]
+            result = regex.search(self.name, flags)
+            setattr(self, match_obj, result)
+            return result
+
+    @property
+    def french(self):
+        """
+        The resolution tag found in the name
+
+        :returns: an empty string if not found
+        """
+        attr = 'french'
+        match = self._get_match_obj(attr)
+        return '' if not match else match.group().lower()
+
+    @property
+    def english(self):
+        attr = 'vostfr'
+        match = self._get_match_obj(attr)
+        return '' if not match else match.group().lower()
+
+
 class EpisodeTags(object):
     """
     Quality tags

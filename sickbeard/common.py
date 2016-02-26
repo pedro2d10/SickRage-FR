@@ -38,7 +38,7 @@ from fake_useragent import settings as UA_SETTINGS, UserAgent
 from sickbeard.numdict import NumDict
 from sickrage.helper.encoding import ek
 from sickrage.helper.common import try_int
-from sickrage.tagger.episode import EpisodeTags
+from sickrage.tagger.episode import EpisodeTags, Episode_fr
 from sickrage.recompiled import tags
 
 
@@ -113,6 +113,29 @@ MULTI_EP_STRINGS = NumDict({
     NAMING_LIMITED_EXTEND: "Extend (Limited)",
     NAMING_LIMITED_EXTEND_E_PREFIXED: "Extend (Limited, E-prefixed)"
 })
+
+def scene_french(name, anime=False):  # pylint: disable=too-many-branches
+    """
+    Return The quality from the scene episode File
+
+    :param name: Episode filename to analyse
+    :param anime: Boolean to indicate if the show we're resolving is Anime
+    :return: Quality
+    """
+
+    if not name:
+        return ""
+    else:
+        name = ek(path.basename, name)
+
+    result = None
+    ep = Episode_fr(name)
+
+    if ep.french:
+        return 'fre'
+    else:
+        return 'eng'
+
 
 
 class Quality(object):
@@ -352,6 +375,10 @@ class Quality(object):
 
         return ret
 
+
+
+
+
     @staticmethod
     def scene_quality(name, anime=False):  # pylint: disable=too-many-branches
         """
@@ -438,6 +465,29 @@ class Quality(object):
                 result = Quality.SDTV
 
         return Quality.UNKNOWN if result is None else result
+
+
+
+    def scene_french(name, anime=False):  # pylint: disable=too-many-branches
+        """
+        Return The quality from the scene episode File
+
+        :param name: Episode filename to analyse
+        :param anime: Boolean to indicate if the show we're resolving is Anime
+        :return: Quality
+        """
+
+        if not name:
+            return ""
+        else:
+            name = ek(path.basename, name)
+
+        result = None
+        ep = Episode_fr(name)
+
+
+
+        return ep
 
     @staticmethod
     # TODO: Remove this method and old_scene_quality after the new scene_quality has been validated.
